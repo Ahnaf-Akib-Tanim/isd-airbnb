@@ -1,0 +1,23 @@
+server:
+  port: 8086
+
+spring:
+  application:
+    name: search-service
+  data:
+    mongodb:
+      uri: ${SPRING_DATA_MONGODB_URI:mongodb+srv://tanim:tanim@cluster0.mongodb.net/searchdb?retryWrites=true&w=majority&appName=ISD+Airbnb}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    com.airbnb.search: DEBUG
+    org.springframework.data.mongodb: INFO

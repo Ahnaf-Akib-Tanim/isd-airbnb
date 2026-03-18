@@ -1,0 +1,23 @@
+server:
+  port: 8088
+
+spring:
+  application:
+    name: admin-service
+  data:
+    mongodb:
+      uri: ${SPRING_DATA_MONGODB_URI:mongodb+srv://tanim:tanim@cluster0.mongodb.net/admindb?retryWrites=true&w=majority&appName=ISD+Airbnb}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    com.airbnb.admin: DEBUG
+    org.springframework.data.mongodb: INFO

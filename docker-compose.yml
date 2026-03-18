@@ -1,0 +1,128 @@
+version: '3.8'
+
+services:
+  api-gateway:
+    build: ./backend/api-gateway
+    container_name: api-gateway
+    ports:
+      - "${API_GATEWAY_PORT:-8080}:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+    depends_on:
+      - user-service
+      - booking-service
+      - payment-service
+      - listing-service
+      - availability-service
+      - search-service
+      - notification-service
+      - admin-service
+    networks:
+      - airbnb-network
+    restart: unless-stopped
+
+  user-service:
+    build: ./backend/user-service
+    container_name: user-service
+    ports:
+      - "${USER_SERVICE_PORT:-8081}:8081"
+    environment:
+      - SPRING_DATA_MONGODB_URI=${MONGO_URI_USER}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRY=${JWT_EXPIRY}
+      - SPRING_PROFILES_ACTIVE=docker
+    networks:
+      - airbnb-network
+    restart: unless-stopped
+
+  booking-service:
+    build: ./backend/booking-service
+    container_name: booking-service
+    ports:
+      - "${BOOKING_SERVICE_PORT:-8082}:8082"
+    environment:
+      - SPRING_DATA_MONGODB_URI=${MONGO_URI_BOOKING}
+      - SPRING_PROFILES_ACTIVE=docker
+    networks:
+      - airbnb-network
+    restart: unless-stopped
+
+  payment-service:
+    build: ./backend/payment-service
+    container_name: payment-service
+    ports:
+      - "${PAYMENT_SERVICE_PORT:-8083}:8083"
+    environment:
+      - SPRING_DATA_MONGODB_URI=${MONGO_URI_PAYMENT}
+      - SPRING_PROFILES_ACTIVE=docker
+    networks:
+      - airbnb-network
+    restart: unless-stopped
+
+  listing-service:
+    build: ./backend/listing-service
+    container_name: listing-service
+    ports:
+      - "${LISTING_SERVICE_PORT:-8084}:8084"
+    environment:
+      - SPRING_DATA_MONGODB_URI=${MONGO_URI_LISTING}
+      - SPRING_PROFILES_ACTIVE=docker
+    networks:
+      - airbnb-network
+    restart: unless-stopped
+
+  availability-service:
+    build: ./backend/availability-service
+    container_name: availability-service
+    ports:
+      - "${AVAILABILITY_SERVICE_PORT:-8085}:8085"
+    environment:
+      - SPRING_DATA_MONGODB_URI=${MONGO_URI_AVAILABILITY}
+      - SPRING_PROFILES_ACTIVE=docker
+    networks:
+      - airbnb-network
+    restart: unless-stopped
+
+  search-service:
+    build: ./backend/search-service
+    container_name: search-service
+    ports:
+      - "${SEARCH_SERVICE_PORT:-8086}:8086"
+    environment:
+      - SPRING_DATA_MONGODB_URI=${MONGO_URI_SEARCH}
+      - SPRING_PROFILES_ACTIVE=docker
+    networks:
+      - airbnb-network
+    restart: unless-stopped
+
+  notification-service:
+    build: ./backend/notification-service
+    container_name: notification-service
+    ports:
+      - "${NOTIFICATION_SERVICE_PORT:-8087}:8087"
+    environment:
+      - SPRING_DATA_MONGODB_URI=${MONGO_URI_NOTIFICATION}
+      - MAIL_HOST=${MAIL_HOST}
+      - MAIL_PORT=${MAIL_PORT}
+      - MAIL_USERNAME=${MAIL_USERNAME}
+      - MAIL_PASSWORD=${MAIL_PASSWORD}
+      - SPRING_PROFILES_ACTIVE=docker
+    networks:
+      - airbnb-network
+    restart: unless-stopped
+
+  admin-service:
+    build: ./backend/admin-service
+    container_name: admin-service
+    ports:
+      - "${ADMIN_SERVICE_PORT:-8088}:8088"
+    environment:
+      - SPRING_DATA_MONGODB_URI=${MONGO_URI_ADMIN}
+      - SPRING_PROFILES_ACTIVE=docker
+    networks:
+      - airbnb-network
+    restart: unless-stopped
+
+networks:
+  airbnb-network:
+    driver: bridge

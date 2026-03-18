@@ -1,0 +1,60 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: user-service
+
+  data:
+    mongodb:
+      uri: ${SPRING_DATA_MONGODB_URI:mongodb+srv://tanim:tanim@cluster0.mongodb.net/userdb?retryWrites=true&w=majority&appName=ISD+Airbnb}
+      database: userdb
+
+  # Disable Spring Security auto-config for DataSource (MongoDB only)
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+
+# JWT Configuration
+jwt:
+  secret: ${JWT_SECRET:defaultSuperSecretKeyForDevOnlyChangeInProd}
+  expiry: ${JWT_EXPIRY:86400000}   # 24 hours in ms
+  refresh-expiry: ${JWT_REFRESH_EXPIRY:604800000}  # 7 days in ms
+
+# Actuator
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+# Logging
+logging:
+  level:
+    root: INFO
+    com.airbnb.user: DEBUG
+    org.springframework.data.mongodb: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+# Spring profiles
+---
+spring:
+  config:
+    activate:
+      on-profile: docker
+  data:
+    mongodb:
+      uri: ${SPRING_DATA_MONGODB_URI}
+
+---
+spring:
+  config:
+    activate:
+      on-profile: test
+  data:
+    mongodb:
+      uri: ${SPRING_DATA_MONGODB_URI:mongodb+srv://tanim:tanim@cluster0.mongodb.net/userdb-test?retryWrites=true&w=majority&appName=ISD+Airbnb}
