@@ -589,3 +589,41 @@ select {
         padding: var(--space-5);
     }
 }
+
+.home-hero__card-list {
+  list-style: none;
+  display: grid;
+  gap: var(--space-2);
+  margin-bottom: var(--space-5);
+}
+
+.home-hero__card-list li {
+  position: relative;
+  padding-left: 1.1rem;
+  color: var(--airbnb-dark);
+  font-size: var(--font-sm);
+  line-height: 1.5;
+}
+
+.home-hero__card-list li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.45rem;
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background: var(--airbnb-red);
+}
+
+.home-hero__card-action {
+  display: inline-flex;
+  align-items: center;
+  font-weight: 700;
+  color: var(--airbnb-dark);
+}
+
+.home-hero__card-action:hover {
+  color: var(--airbnb-red);
+  text-decoration: none;
+}

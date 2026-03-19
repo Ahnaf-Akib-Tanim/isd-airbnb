@@ -10,15 +10,15 @@ const HomePage = () => {
       <section className="page-content">
         <div className="home-hero container animate-fade-in-up">
           <div className="home-hero__content">
-            <p className="home-hero__eyebrow">BUET CSE 326 · ISD Airbnb</p>
+            <p className="home-hero__eyebrow">BUET CSE 326 - ISD Airbnb</p>
             <h1 className="home-hero__title">
               Stay anywhere.
               <br />
               <span>Live like a local.</span>
             </h1>
             <p className="home-hero__subtitle">
-              Discover unique stays hosted by real people. Designed as a microservice-based Airbnb clone
-              with booking status history and rich tracking.
+              Discover unique stays hosted by real people. The current build already supports account creation,
+              login, and profile management through the user service.
             </p>
 
             <div className="home-hero__actions">
@@ -27,11 +27,9 @@ const HomePage = () => {
                   <Link to="/profile" className="btn btn-primary btn-lg">
                     Go to your profile
                   </Link>
-                  {isHost && (
-                    <Link to="/my-listings" className="btn btn-outline">
-                      Manage your listings
-                    </Link>
-                  )}
+                  <Link to="/profile" className="btn btn-outline">
+                    Update your details
+                  </Link>
                 </>
               ) : (
                 <>
@@ -47,35 +45,32 @@ const HomePage = () => {
 
             {isAuthenticated && (
               <p className="home-hero__welcome">
-                Signed in as <strong>{fullName}</strong>. Your bookings and status history will appear in the
-                dedicated history views as we wire other microservices.
+                Signed in as <strong>{fullName}</strong>. Your account is live now, while trips, listings,
+                and hosting tools are the next features to be wired.
               </p>
             )}
           </div>
 
           <div className="home-hero__card-grid">
             <div className="home-hero__card">
-              <div className="home-hero__badge">Microservices</div>
-              <h3>User service</h3>
+              <div className="home-hero__badge home-hero__badge--secondary">Trips and hosting</div>
+              <h3>{isHost ? 'Hosting tools are next' : 'Trips and hosting are coming next'}</h3>
               <p>
-                Secure authentication, JWT-based sessions, and profile management built with Spring Boot and
-                MongoDB.
+                This project is moving toward booking history, status tracking, and host-side tools. Right now,
+                your account and profile are ready, and the next major screens will build on top of them.
               </p>
-            </div>
-            <div className="home-hero__card">
-              <div className="home-hero__badge home-hero__badge--secondary">Status & history</div>
-              <h3>Booking lifecycle</h3>
-              <p>
-                From <strong>PENDING</strong> to <strong>CHECKED_OUT</strong>, every transition is captured for
-                rich history and analytics.
-              </p>
-            </div>
-            <div className="home-hero__card">
-              <div className="home-hero__badge home-hero__badge--ghost">CI/CD · Docker</div>
-              <h3>Production-style setup</h3>
-              <p>
-                GitHub Actions, Docker, and an API gateway give you a realistic cloud‑native Airbnb-style stack.
-              </p>
+              <ul className="home-hero__card-list">
+                <li>Upcoming trips and booking history can live here later</li>
+                <li>Booking status steps like PENDING, CONFIRMED, and CHECKED_OUT fit naturally in this area</li>
+                <li>
+                  {isHost
+                    ? 'Host dashboard shortcuts and listing stats can be added here'
+                    : 'Host onboarding and listing access can be added here later'}
+                </li>
+              </ul>
+              <Link to={isAuthenticated ? '/profile' : '/register'} className="home-hero__card-action">
+                {isAuthenticated ? 'Finish your profile' : 'Create your account'}
+              </Link>
             </div>
           </div>
         </div>
@@ -85,4 +80,3 @@ const HomePage = () => {
 };
 
 export default HomePage;
-
