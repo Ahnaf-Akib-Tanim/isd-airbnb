@@ -2,14 +2,15 @@ package com.airbnb.user.dto.response;
 
 import com.airbnb.user.model.enums.Role;
 import com.airbnb.user.model.enums.UserStatus;
+import java.time.LocalDateTime;
+import java.util.List;
 import lombok.Builder;
 import lombok.Data;
-
-import java.time.LocalDateTime;
 
 @Data
 @Builder
 public class UserProfileResponse {
+
     private String userId;
     private String email;
     private String firstName;
@@ -20,6 +21,7 @@ public class UserProfileResponse {
     private Role role;
     private UserStatus status;
     private boolean emailVerified;
+    private LocalDateTime verificationEmailSentAt;
 
     // Address
     private String street;
@@ -29,6 +31,16 @@ public class UserProfileResponse {
 
     // Host info
     private boolean superhost;
+    private String hostDisplayName;
+    private String hostAbout;
+    private LocalDateTime hostingSince;
+    private String preferredCheckInTime;
+    private String preferredCheckOutTime;
+    private Integer responseTimeHours;
+    private String houseRules;
+    private List<String> propertyTypesOffered;
+    private List<String> offeringHighlights;
+    private List<String> hostPortfolioImages;
     private Integer totalListings;
     private Double averageRating;
     private Double responseRate;

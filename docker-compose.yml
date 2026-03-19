@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   api-gateway:
@@ -30,6 +30,8 @@ services:
       - SPRING_DATA_MONGODB_URI=${MONGO_URI_USER}
       - JWT_SECRET=${JWT_SECRET}
       - JWT_EXPIRY=${JWT_EXPIRY}
+      - NOTIFICATION_SERVICE_URL=http://notification-service:8087
+      - FRONTEND_BASE_URL=${FRONTEND_BASE_URL:-http://localhost:3000}
       - SPRING_PROFILES_ACTIVE=docker
     networks:
       - airbnb-network

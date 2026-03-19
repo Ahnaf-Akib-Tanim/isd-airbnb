@@ -12,6 +12,8 @@ import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -48,6 +50,8 @@ public class User {
     @Builder.Default
     private boolean emailVerified = false;
 
+    private LocalDateTime verificationEmailSentAt;
+
     // Address
     private String street;
     private String city;
@@ -57,6 +61,23 @@ public class User {
     // Host-specific info
     @Builder.Default
     private boolean superhost = false;
+
+    private String hostDisplayName;
+    private String hostAbout;
+    private LocalDateTime hostingSince;
+    private String preferredCheckInTime;
+    private String preferredCheckOutTime;
+    private Integer responseTimeHours;
+    private String houseRules;
+
+    @Builder.Default
+    private List<String> propertyTypesOffered = new ArrayList<>();
+
+    @Builder.Default
+    private List<String> offeringHighlights = new ArrayList<>();
+
+    @Builder.Default
+    private List<String> hostPortfolioImages = new ArrayList<>();
 
     private Integer totalListings;
     private Double averageRating;

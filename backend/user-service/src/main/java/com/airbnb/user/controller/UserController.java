@@ -3,14 +3,14 @@ package com.airbnb.user.controller;
 import com.airbnb.user.dto.request.ChangePasswordRequest;
 import com.airbnb.user.dto.request.UpdateProfileRequest;
 import com.airbnb.user.dto.response.UserProfileResponse;
+import com.airbnb.user.dto.response.VerificationResponse;
 import com.airbnb.user.service.UserService;
 import jakarta.validation.Valid;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/users")
@@ -20,28 +20,50 @@ public class UserController {
     private final UserService userService;
 
     @GetMapping("/me")
-    public ResponseEntity<UserProfileResponse> getMyProfile(Authentication authentication) {
-        return ResponseEntity.ok(userService.getProfile(authentication.getName()));
+    public ResponseEntity<UserProfileResponse> getMyProfile(
+        Authentication authentication
+    ) {
+        return ResponseEntity.ok(
+            userService.getProfile(authentication.getName())
+        );
     }
 
     @PutMapping("/me")
     public ResponseEntity<UserProfileResponse> updateMyProfile(
-            Authentication authentication,
-            @RequestBody UpdateProfileRequest request) {
-        return ResponseEntity.ok(userService.updateProfile(authentication.getName(), request));
+        Authentication authentication,
+        @RequestBody UpdateProfileRequest request
+    ) {
+        return ResponseEntity.ok(
+            userService.updateProfile(authentication.getName(), request)
+        );
     }
 
     @PutMapping("/me/password")
     public ResponseEntity<String> changeMyPassword(
-            Authentication authentication,
-            @Valid @RequestBody ChangePasswordRequest request
+        Authentication authentication,
+        @Valid @RequestBody ChangePasswordRequest request
     ) {
-        userService.changePassword(authentication.getName(), request.getCurrentPassword(), request.getNewPassword());
+        userService.changePassword(
+            authentication.getName(),
+            request.getCurrentPassword(),
+            request.getNewPassword()
+        );
         return ResponseEntity.ok("Password changed successfully");
     }
 
+    @PostMapping("/me/resend-verification")
+    public ResponseEntity<VerificationResponse> resendVerification(
+        Authentication authentication
+    ) {
+        return ResponseEntity.ok(
+            userService.resendVerificationEmail(authentication.getName())
+        );
+    }
+
     @GetMapping("/{userId}")
-    public ResponseEntity<UserProfileResponse> getUserById(@PathVariable String userId) {
+    public ResponseEntity<UserProfileResponse> getUserById(
+        @PathVariable String userId
+    ) {
         return ResponseEntity.ok(userService.getProfileByUserId(userId));
     }
 
