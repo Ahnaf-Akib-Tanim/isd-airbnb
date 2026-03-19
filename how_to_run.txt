@@ -1,0 +1,17 @@
+for backend:
+
+cd "C:\Buet\CSE 326 ISD\Airbnb project\backend\user-service"
+$env:SPRING_DATA_MONGODB_URI="mongodb://tanim:admin@ac-sdwebpd-shard-00-00.84zkttd.mongodb.net:27017,ac-sdwebpd-shard-00-01.84zkttd.mongodb.net:27017,ac-sdwebpd-shard-00-02.84zkttd.mongodb.net:27017/userdb?ssl=true&replicaSet=atlas-277zyg-shard-0&authSource=admin&appName=cluster0"
+mvn spring-boot:run
+
+
+for frontend:
+cd "C:\Buet\CSE 326 ISD\Airbnb project\frontend"
+npm install
+npm start
+
+open:
+http://localhost:3000
+
+
+when in production change the base url in .env.local to 8080
