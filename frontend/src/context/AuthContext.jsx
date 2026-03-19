@@ -1,8 +1,18 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import authService from '../services/authService';
+import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { toast } from 'react-toastify';
+import authService from '../services/authService';
 
 const AuthContext = createContext(null);
+
+const toStoredUser = (authResponse) => ({
+  userId: authResponse.userId,
+  email: authResponse.email,
+  firstName: authResponse.firstName,
+  lastName: authResponse.lastName,
+  role: authResponse.role,
+  profileImage: authResponse.profileImage || '',
+  emailVerified: Boolean(authResponse.emailVerified),
+});
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
@@ -13,22 +23,25 @@ export const useAuth = () => {
 };
 
 export const AuthProvider = ({ children }) => {
-  const [user, setUser]       = useState(null);
-  const [token, setToken]     = useState(null);
+  const [user, setUser] = useState(null);
+  const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError]     = useState(null);
+  const [error, setError] = useState(null);
 
-  // ─── Rehydrate from localStorage on app start ───────────────
+  const clearAuthData = useCallback(() => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    setToken(null);
+    setUser(null);
+  }, []);
+
   useEffect(() => {
-    // Keep keys consistent with authService / axiosConfig
     const storedToken = localStorage.getItem('token');
-    const storedUser  = localStorage.getItem('user');
+    const storedUser = localStorage.getItem('user');
 
     if (storedToken && storedUser) {
       try {
         const parsedUser = JSON.parse(storedUser);
-
-        // Check token expiry
         const payload = JSON.parse(atob(storedToken.split('.')[1]));
         const isExpired = payload.exp * 1000 < Date.now();
 
@@ -38,37 +51,22 @@ export const AuthProvider = ({ children }) => {
           setToken(storedToken);
           setUser(parsedUser);
         }
-      } catch (e) {
+      } catch {
         clearAuthData();
       }
     }
+
     setLoading(false);
+  }, [clearAuthData]);
+
+  const saveAuthData = useCallback((authResponse) => {
+    const nextUser = toStoredUser(authResponse);
+    localStorage.setItem('token', authResponse.token);
+    localStorage.setItem('user', JSON.stringify(nextUser));
+    setToken(authResponse.token);
+    setUser(nextUser);
   }, []);
 
-  // ─── Save auth data to localStorage ─────────────────────────
-  const saveAuthData = (authResponse) => {
-    const userData = {
-      userId:    authResponse.userId,
-      email:     authResponse.email,
-      firstName: authResponse.firstName,
-      lastName:  authResponse.lastName,
-      role:      authResponse.role,
-    };
-    localStorage.setItem('token', authResponse.token);
-    localStorage.setItem('user',  JSON.stringify(userData));
-    setToken(authResponse.token);
-    setUser(userData);
-  };
-
-  // ─── Clear auth data ─────────────────────────────────────────
-  const clearAuthData = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    setToken(null);
-    setUser(null);
-  };
-
-  // ─── Register ───────────────────────────────────────────────
   const register = useCallback(async (registerData) => {
     setError(null);
     setLoading(true);
@@ -85,9 +83,8 @@ export const AuthProvider = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [saveAuthData]);
 
-  // ─── Login ───────────────────────────────────────────────────
   const login = useCallback(async (loginData) => {
     setError(null);
     setLoading(true);
@@ -104,53 +101,41 @@ export const AuthProvider = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [saveAuthData]);
 
-  // ─── Logout ──────────────────────────────────────────────────
   const logout = useCallback(() => {
     clearAuthData();
     setError(null);
     toast.info('Logged out.');
+  }, [clearAuthData]);
+
+  const updateUser = useCallback((updatedData) => {
+    setUser((prev) => {
+      const updated = { ...prev, ...updatedData };
+      localStorage.setItem('user', JSON.stringify(updated));
+      return updated;
+    });
   }, []);
 
-  // ─── Update user in context after profile edit ───────────────
-  const updateUser = useCallback((updatedData) => {
-    const updated = { ...user, ...updatedData };
-    setUser(updated);
-    localStorage.setItem('user', JSON.stringify(updated));
-  }, [user]);
-
-  // ─── Helpers ─────────────────────────────────────────────────
-  const isAuthenticated = !!token && !!user;
-  const isGuest         = user?.role === 'GUEST';
-  const isHost          = user?.role === 'HOST';
-  const isAdmin         = user?.role === 'ADMIN';
-  const fullName        = user ? `${user.firstName} ${user.lastName}` : '';
-  const initials        = user
-    ? `${user.firstName?.charAt(0) ?? ''}${user.lastName?.charAt(0) ?? ''}`.toUpperCase()
-    : '';
-
   const value = {
-    // State
     user,
     token,
     loading,
     error,
-
-    // Actions
     register,
     login,
     logout,
     updateUser,
     setError,
-
-    // Computed
-    isAuthenticated,
-    isGuest,
-    isHost,
-    isAdmin,
-    fullName,
-    initials,
+    isAuthenticated: !!token && !!user,
+    isGuest: user?.role === 'GUEST',
+    isHost: user?.role === 'HOST',
+    isAdmin: user?.role === 'ADMIN',
+    isEmailVerified: Boolean(user?.emailVerified),
+    fullName: user ? `${user.firstName} ${user.lastName}` : '',
+    initials: user
+      ? `${user.firstName?.charAt(0) ?? ''}${user.lastName?.charAt(0) ?? ''}`.toUpperCase()
+      : '',
   };
 
   return (
