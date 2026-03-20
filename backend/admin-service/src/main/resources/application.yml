@@ -4,9 +4,6 @@ server:
 spring:
   application:
     name: admin-service
-  data:
-    mongodb:
-      uri: ${SPRING_DATA_MONGODB_URI:mongodb+srv://tanim:tanim@cluster0.mongodb.net/admindb?retryWrites=true&w=majority&appName=ISD+Airbnb}
 
 management:
   endpoints:
@@ -20,4 +17,12 @@ management:
 logging:
   level:
     com.airbnb.admin: DEBUG
-    org.springframework.data.mongodb: INFO
+
+jwt:
+  secret: ${JWT_SECRET:defaultSuperSecretKeyForDevOnlyChangeInProd}
+
+services:
+  user-service:
+    url: ${USER_SERVICE_URL:http://localhost:8081}
+  notification-service:
+    url: ${NOTIFICATION_SERVICE_URL:http://localhost:8087}

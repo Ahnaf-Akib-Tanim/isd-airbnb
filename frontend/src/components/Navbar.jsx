@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import NotificationBell from "./NotificationBell";
 import "./Navbar.css";
 
 const Navbar = () => {
@@ -88,7 +89,7 @@ const Navbar = () => {
         <div className="navbar__actions">
           {/* Become a host link */}
           {(!isAuthenticated || user?.role === "GUEST") && (
-            <Link to="/register" className="navbar__host-link">
+            <Link to="/register?role=HOST" className="navbar__host-link">
               Become a Host
             </Link>
           )}
@@ -107,6 +108,8 @@ const Navbar = () => {
               />
             </svg>
           </button>
+
+          {isAuthenticated && <NotificationBell user={user} />}
 
           {/* User menu */}
           <div className="navbar__menu-wrapper" ref={menuRef}>
@@ -185,18 +188,37 @@ const Navbar = () => {
 
                     <div className="navbar__dropdown-divider" />
 
-                    <button
-                      className="navbar__dropdown-item"
-                      onClick={() => handleMenuClick("/profile")}
-                    >
-                      <svg viewBox="0 0 32 32" aria-hidden="true">
-                        <path
-                          d="M16 2a14 14 0 1 0 0 28A14 14 0 0 0 16 2zm0 5a4.5 4.5 0 1 1 0 9 4.5 4.5 0 0 1 0-9zm0 19a10.5 10.5 0 0 1-8-3.7 6 6 0 0 1 5.33-3.3h5.34A6 6 0 0 1 24 22.3 10.5 10.5 0 0 1 16 26z"
-                          fill="currentColor"
-                        />
-                      </svg>
-                      Profile
-                    </button>
+                    {user?.role !== "ADMIN" && (
+                      <button
+                        className="navbar__dropdown-item"
+                        onClick={() => handleMenuClick("/profile")}
+                      >
+                        <svg viewBox="0 0 32 32" aria-hidden="true">
+                          <path
+                            d="M16 2a14 14 0 1 0 0 28A14 14 0 0 0 16 2zm0 5a4.5 4.5 0 1 1 0 9 4.5 4.5 0 0 1 0-9zm0 19a10.5 10.5 0 0 1-8-3.7 6 6 0 0 1 5.33-3.3h5.34A6 6 0 0 1 24 22.3 10.5 10.5 0 0 1 16 26z"
+                            fill="currentColor"
+                          />
+                        </svg>
+                        Profile
+                      </button>
+                    )}
+
+                    {user?.role === "ADMIN" && (
+                      <button
+                        className="navbar__dropdown-item"
+                        onClick={() =>
+                          handleMenuClick("/admin/verification-requests")
+                        }
+                      >
+                        <svg viewBox="0 0 32 32" aria-hidden="true">
+                          <path
+                            d="M16 2l11 4v8c0 7.18-4.5 13.42-11 16-6.5-2.58-11-8.82-11-16V6l11-4zm0 3.06L8 7.97V14c0 5.66 3.33 10.74 8 13.16 4.67-2.42 8-7.5 8-13.16V7.97l-8-2.91zm-1 6h2v6h-2v-6zm0 8h2v2h-2v-2z"
+                            fill="currentColor"
+                          />
+                        </svg>
+                        Verification Queue
+                      </button>
+                    )}
 
                     {user?.role === "HOST" && (
                       <button
@@ -213,18 +235,20 @@ const Navbar = () => {
                       </button>
                     )}
 
-                    <button
-                      className="navbar__dropdown-item"
-                      onClick={() => handleMenuClick("/bookings")}
-                    >
-                      <svg viewBox="0 0 32 32" aria-hidden="true">
-                        <path
-                          d="M26 2H6a2 2 0 0 0-2 2v24a2 2 0 0 0 2 2h20a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2zm-1 25H7V5h18v22zM11 11h10v2H11zm0 5h10v2H11zm0 5h6v2h-6z"
-                          fill="currentColor"
-                        />
-                      </svg>
-                      My Bookings
-                    </button>
+                    {user?.role !== "ADMIN" && (
+                      <button
+                        className="navbar__dropdown-item"
+                        onClick={() => handleMenuClick("/bookings")}
+                      >
+                        <svg viewBox="0 0 32 32" aria-hidden="true">
+                          <path
+                            d="M26 2H6a2 2 0 0 0-2 2v24a2 2 0 0 0 2 2h20a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2zm-1 25H7V5h18v22zM11 11h10v2H11zm0 5h10v2H11zm0 5h6v2h-6z"
+                            fill="currentColor"
+                          />
+                        </svg>
+                        My Bookings
+                      </button>
+                    )}
 
                     <div className="navbar__dropdown-divider" />
 
@@ -245,7 +269,7 @@ const Navbar = () => {
                   <>
                     <button
                       className="navbar__dropdown-item navbar__dropdown-item--bold"
-                      onClick={() => handleMenuClick("/register")}
+                      onClick={() => handleMenuClick("/register?role=GUEST")}
                     >
                       Sign up
                     </button>
@@ -258,7 +282,7 @@ const Navbar = () => {
                     <div className="navbar__dropdown-divider" />
                     <button
                       className="navbar__dropdown-item"
-                      onClick={() => handleMenuClick("/register")}
+                      onClick={() => handleMenuClick("/register?role=HOST")}
                     >
                       Become a Host
                     </button>
