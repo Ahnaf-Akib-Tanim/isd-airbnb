@@ -11,10 +11,17 @@ public class UpdateProfileRequest {
     private String phoneNumber;
     private String profileImage;
     private String bio;
+    private List<String> favoriteHostIds;
     private String street;
+    private String area;
+    private String village;
+    private String district;
+    private String division;
     private String city;
     private String country;
     private String zipCode;
+    private Double latitude;
+    private Double longitude;
     private String hostDisplayName;
     private String hostAbout;
     private String hostingSince;
@@ -25,4 +32,8 @@ public class UpdateProfileRequest {
     private List<String> propertyTypesOffered;
     private List<String> offeringHighlights;
     private List<String> hostPortfolioImages;
+    private Integer guestCapacity;
+    private Integer bedCount;
+    private List<String> bedTypes;
+    private Double nightlyRateUsd;
 }

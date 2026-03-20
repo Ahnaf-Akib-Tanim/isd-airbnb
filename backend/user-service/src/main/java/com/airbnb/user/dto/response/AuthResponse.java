@@ -1,6 +1,7 @@
 package com.airbnb.user.dto.response;
 
 import com.airbnb.user.model.enums.Role;
+import com.airbnb.user.model.enums.VerificationStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -20,5 +21,8 @@ public class AuthResponse {
     private Role role;
     private String profileImage;
     private boolean emailVerified;
+    private VerificationStatus verificationStatus;
+    private boolean canBook;
+    private boolean canHost;
     private String message;
 }

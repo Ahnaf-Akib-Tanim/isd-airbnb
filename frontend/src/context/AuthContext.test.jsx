@@ -55,6 +55,7 @@ describe("AuthContext", () => {
       role: "GUEST",
       profileImage: "",
       emailVerified: false,
+      verificationStatus: "PENDING",
       message: "ok",
     });
 

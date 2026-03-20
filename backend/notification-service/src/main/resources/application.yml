@@ -9,22 +9,6 @@ spring:
     mongodb:
       uri: ${SPRING_DATA_MONGODB_URI:mongodb+srv://tanim:tanim@cluster0.mongodb.net/notificationdb?retryWrites=true&w=majority&appName=ISD+Airbnb}
 
-  mail:
-    host: ${MAIL_HOST:smtp.gmail.com}
-    port: ${MAIL_PORT:587}
-    username: ${MAIL_USERNAME:}
-    password: ${MAIL_PASSWORD:}
-    properties:
-      mail:
-        smtp:
-          auth: true
-          starttls:
-            enable: true
-            required: true
-        connectiontimeout: 5000
-        timeout: 5000
-        writetimeout: 5000
-
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:local}
 
@@ -40,14 +24,5 @@ management:
 logging:
   level:
     com.airbnb.notification: DEBUG
-    org.springframework.mail: DEBUG
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
-
-notification:
-  retry:
-    max-attempts: 3
-    backoff-delay: 2000
-  email:
-    from: ${MAIL_USERNAME:noreply@isd-airbnb.com}
-    from-name: ISD Airbnb

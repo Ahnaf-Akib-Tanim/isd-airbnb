@@ -13,6 +13,8 @@ import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import ProfilePage from "./pages/ProfilePage";
 import VerifyEmailPage from "./pages/VerifyEmailPage";
+import AdminVerificationPage from "./pages/AdminVerificationPage";
+import AdminLoginPage from "./pages/AdminLoginPage";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import "./index.css";
@@ -20,7 +22,12 @@ import "./index.css";
 function App() {
   return (
     <AuthProvider>
-      <Router>
+      <Router
+        future={{
+          v7_startTransition: true,
+          v7_relativeSplatPath: true,
+        }}
+      >
         <div className="app">
           <Navbar />
           <main className="main-content">
@@ -28,6 +35,7 @@ function App() {
               {/* Public Routes */}
               <Route path="/" element={<HomePage />} />
               <Route path="/login" element={<LoginPage />} />
+              <Route path="/admin/login" element={<AdminLoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
               <Route path="/verify-email" element={<VerifyEmailPage />} />
 
@@ -37,6 +45,17 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <ProfilePage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/verification-requests"
+                element={
+                  <ProtectedRoute
+                    allowedRoles={["ADMIN"]}
+                    redirectTo="/admin/login"
+                  >
+                    <AdminVerificationPage />
                   </ProtectedRoute>
                 }
               />

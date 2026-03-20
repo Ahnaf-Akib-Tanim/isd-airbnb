@@ -37,6 +37,7 @@ describe("authService", () => {
         role: "GUEST",
         profileImage: "data:image/png;base64,abc",
         emailVerified: false,
+        verificationStatus: "PENDING",
         message: "ok",
       },
     });
@@ -59,6 +60,7 @@ describe("authService", () => {
       role: "GUEST",
       profileImage: "data:image/png;base64,abc",
       emailVerified: false,
+      verificationStatus: "PENDING",
     });
   });
 

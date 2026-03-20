@@ -1,17 +1,30 @@
-for backend:
+Backend and Atlas setup:
 
-cd "C:\Buet\CSE 326 ISD\Airbnb project\backend\user-service"
-$env:SPRING_DATA_MONGODB_URI="mongodb://tanim:admin@ac-sdwebpd-shard-00-00.84zkttd.mongodb.net:27017,ac-sdwebpd-shard-00-01.84zkttd.mongodb.net:27017,ac-sdwebpd-shard-00-02.84zkttd.mongodb.net:27017/userdb?ssl=true&replicaSet=atlas-277zyg-shard-0&authSource=admin&appName=cluster0"
-mvn spring-boot:run
+1. Copy .env.example to .env
+2. Put your Atlas MongoDB connection strings in all MONGO_URI_* variables
+3. Start the stack:
+   docker-compose down --remove-orphans
+   docker-compose up --build
 
+Important:
+- docker-compose.yml is now configured for Atlas only.
+- It no longer starts a local MongoDB container.
+- If MONGO_URI_* is missing or wrong, the services will fail to connect.
+- Old local Docker Mongo volumes do not matter once you switch to Atlas URIs.
 
-for frontend:
+Frontend:
+
 cd "C:\Buet\CSE 326 ISD\Airbnb project\frontend"
 npm install
 npm start
 
-open:
+Open:
 http://localhost:3000
 
+Admin:
+- Admin login route: http://localhost:3000/admin/login
+- Admin verification queue: http://localhost:3000/admin/verification-requests
 
-when in production change the base url in .env.local to 8080
+Notes:
+- If your Atlas IP access list does not allow your current network, Mongo connections will fail.
+- Make sure Atlas database users have permission for all service databases.
