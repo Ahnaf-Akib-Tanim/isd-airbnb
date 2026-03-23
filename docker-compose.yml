@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   api-gateway:
     build: ./backend/api-gateway
@@ -29,8 +27,12 @@ services:
     environment:
       - SPRING_DATA_MONGODB_URI=${MONGO_URI_USER}
       - JWT_SECRET=${JWT_SECRET}
-      - JWT_EXPIRY=${JWT_EXPIRY}
+      - JWT_EXPIRY=${JWT_EXPIRY:-86400000}
+      - NOTIFICATION_SERVICE_URL=http://notification-service:8087
+      - FRONTEND_BASE_URL=${FRONTEND_BASE_URL:-http://localhost:3000}
       - SPRING_PROFILES_ACTIVE=docker
+      - HOST_SEED_ENABLED=false
+      - HOST_SEED_COUNT=10
     networks:
       - airbnb-network
     restart: unless-stopped
@@ -43,6 +45,7 @@ services:
     environment:
       - SPRING_DATA_MONGODB_URI=${MONGO_URI_BOOKING}
       - SPRING_PROFILES_ACTIVE=docker
+      - NOTIFICATION_SERVICE_URL=http://notification-service:8087
     networks:
       - airbnb-network
     restart: unless-stopped
@@ -102,10 +105,6 @@ services:
       - "${NOTIFICATION_SERVICE_PORT:-8087}:8087"
     environment:
       - SPRING_DATA_MONGODB_URI=${MONGO_URI_NOTIFICATION}
-      - MAIL_HOST=${MAIL_HOST}
-      - MAIL_PORT=${MAIL_PORT}
-      - MAIL_USERNAME=${MAIL_USERNAME}
-      - MAIL_PASSWORD=${MAIL_PASSWORD}
       - SPRING_PROFILES_ACTIVE=docker
     networks:
       - airbnb-network
@@ -117,7 +116,9 @@ services:
     ports:
       - "${ADMIN_SERVICE_PORT:-8088}:8088"
     environment:
-      - SPRING_DATA_MONGODB_URI=${MONGO_URI_ADMIN}
+      - JWT_SECRET=${JWT_SECRET}
+      - USER_SERVICE_URL=http://user-service:8081
+      - NOTIFICATION_SERVICE_URL=http://notification-service:8087
       - SPRING_PROFILES_ACTIVE=docker
     networks:
       - airbnb-network
