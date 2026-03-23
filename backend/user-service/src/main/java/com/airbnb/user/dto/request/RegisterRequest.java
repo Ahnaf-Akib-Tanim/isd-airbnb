@@ -28,6 +28,17 @@ public class RegisterRequest {
     private String phoneNumber;
     private String profileImage;
     private String bio;
+    private List<String> favoriteHostIds = new ArrayList<>();
+    private String street;
+    private String area;
+    private String village;
+    private String district;
+    private String division;
+    private String city;
+    private String country;
+    private String zipCode;
+    private Double latitude;
+    private Double longitude;
 
     private Role role = Role.GUEST;
 
@@ -42,4 +53,8 @@ public class RegisterRequest {
     private List<String> propertyTypesOffered = new ArrayList<>();
     private List<String> offeringHighlights = new ArrayList<>();
     private List<String> hostPortfolioImages = new ArrayList<>();
+    private Integer guestCapacity;
+    private Integer bedCount;
+    private List<String> bedTypes = new ArrayList<>();
+    private Double nightlyRateUsd;
 }

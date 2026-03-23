@@ -39,6 +39,10 @@ public class SecurityConfig {
                         "/api/users/verify-email"
                     )
                     .permitAll()
+                    .requestMatchers("/api/users/hosts/**").permitAll()
+                    // Public: let anyone view a host profile by userId (for listing pages)
+                    .requestMatchers("/api/users/*/access").permitAll()
+                    .requestMatchers("/api/users/*").permitAll()
                     .requestMatchers("/actuator/**")
                     .permitAll()
                     .requestMatchers("/api/users/admin/**")

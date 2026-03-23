@@ -2,6 +2,8 @@ package com.airbnb.user.controller;
 
 import com.airbnb.user.dto.request.ChangePasswordRequest;
 import com.airbnb.user.dto.request.UpdateProfileRequest;
+import com.airbnb.user.dto.request.VerificationDecisionRequest;
+import com.airbnb.user.dto.response.UserAccessResponse;
 import com.airbnb.user.dto.response.UserProfileResponse;
 import com.airbnb.user.dto.response.VerificationResponse;
 import com.airbnb.user.service.UserService;
@@ -25,6 +27,15 @@ public class UserController {
     ) {
         return ResponseEntity.ok(
             userService.getProfile(authentication.getName())
+        );
+    }
+
+    @GetMapping("/me/access")
+    public ResponseEntity<UserAccessResponse> getMyAccess(
+        Authentication authentication
+    ) {
+        return ResponseEntity.ok(
+            userService.getAccessProfile(authentication.getName())
         );
     }
 
@@ -67,9 +78,28 @@ public class UserController {
         return ResponseEntity.ok(userService.getProfileByUserId(userId));
     }
 
+    @GetMapping("/{userId}/access")
+    public ResponseEntity<UserAccessResponse> getUserAccessById(
+        @PathVariable String userId
+    ) {
+        return ResponseEntity.ok(userService.getAccessProfileByUserId(userId));
+    }
+
     @GetMapping("/admin/all")
     public ResponseEntity<List<UserProfileResponse>> getAllUsers() {
         return ResponseEntity.ok(userService.getAllUsers());
+    }
+
+    @GetMapping("/hosts/suggestions")
+    public ResponseEntity<List<UserProfileResponse>> getHostSuggestions(
+        @RequestParam(defaultValue = "") String location,
+        @RequestParam(defaultValue = "0") int page,
+        @RequestParam(defaultValue = "50") int limit
+    ) {
+        return ResponseEntity.ok(
+            userService.getHostSuggestions(location, page, limit)
+                .getContent()
+        );
     }
 
     @PutMapping("/admin/{userId}/suspend")
@@ -82,5 +112,31 @@ public class UserController {
     public ResponseEntity<String> activateUser(@PathVariable String userId) {
         userService.activateUser(userId);
         return ResponseEntity.ok("User activated successfully");
+    }
+
+    @PutMapping("/admin/{userId}/approve-verification")
+    public ResponseEntity<VerificationResponse> approveVerification(
+        @PathVariable String userId,
+        @RequestBody(required = false) VerificationDecisionRequest request
+    ) {
+        return ResponseEntity.ok(
+            userService.approveVerification(
+                userId,
+                request != null ? request.getNote() : null
+            )
+        );
+    }
+
+    @PutMapping("/admin/{userId}/reject-verification")
+    public ResponseEntity<VerificationResponse> rejectVerification(
+        @PathVariable String userId,
+        @RequestBody(required = false) VerificationDecisionRequest request
+    ) {
+        return ResponseEntity.ok(
+            userService.rejectVerification(
+                userId,
+                request != null ? request.getNote() : null
+            )
+        );
     }
 }

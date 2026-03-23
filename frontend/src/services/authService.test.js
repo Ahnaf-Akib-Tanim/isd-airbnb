@@ -1,9 +1,24 @@
-import axios from 'axios';
-import authService from './authService';
+jest.mock("axios", () => {
+  const mockAxios = {
+    post: jest.fn(),
+    get: jest.fn(),
+    put: jest.fn(),
+    interceptors: {
+      request: { use: jest.fn() },
+      response: { use: jest.fn() },
+    },
+  };
 
-jest.mock('axios');
+  return {
+    __esModule: true,
+    default: mockAxios,
+  };
+});
 
-describe('authService', () => {
+import axios from "axios";
+import authService from "./authService";
+
+describe("authService", () => {
   beforeEach(() => {
     localStorage.clear();
     axios.post.mockReset();
@@ -11,43 +26,50 @@ describe('authService', () => {
     axios.put.mockReset();
   });
 
-  test('register stores token and user', async () => {
+  test("register stores token and user", async () => {
     axios.post.mockResolvedValueOnce({
       data: {
-        token: 'jwt.token.value',
-        userId: 'u-1',
-        email: 'a@b.com',
-        firstName: 'A',
-        lastName: 'B',
-        role: 'GUEST',
-        message: 'ok',
+        token: "jwt.token.value",
+        userId: "u-1",
+        email: "a@b.com",
+        firstName: "A",
+        lastName: "B",
+        role: "GUEST",
+        profileImage: "data:image/png;base64,abc",
+        emailVerified: false,
+        verificationStatus: "PENDING",
+        message: "ok",
       },
     });
 
     const res = await authService.register({
-      email: 'a@b.com',
-      password: 'secret123',
-      firstName: 'A',
-      lastName: 'B',
-      role: 'GUEST',
+      email: "a@b.com",
+      password: "secret123",
+      firstName: "A",
+      lastName: "B",
+      role: "GUEST",
     });
 
-    expect(res.token).toBe('jwt.token.value');
-    expect(localStorage.getItem('token')).toBe('jwt.token.value');
-    expect(JSON.parse(localStorage.getItem('user'))).toEqual({
-      userId: 'u-1',
-      email: 'a@b.com',
-      firstName: 'A',
-      lastName: 'B',
-      role: 'GUEST',
+    expect(res.token).toBe("jwt.token.value");
+    expect(localStorage.getItem("token")).toBe("jwt.token.value");
+    expect(JSON.parse(localStorage.getItem("user"))).toEqual({
+      userId: "u-1",
+      email: "a@b.com",
+      firstName: "A",
+      lastName: "B",
+      role: "GUEST",
+      profileImage: "data:image/png;base64,abc",
+      emailVerified: false,
+      verificationStatus: "PENDING",
     });
   });
 
-  test('getMyProfile calls /me', async () => {
-    axios.get.mockResolvedValueOnce({ data: { email: 'a@b.com' } });
+  test("getMyProfile calls /me", async () => {
+    axios.get.mockResolvedValueOnce({ data: { email: "a@b.com" } });
     const res = await authService.getMyProfile();
-    expect(res).toEqual({ email: 'a@b.com' });
-    expect(axios.get).toHaveBeenCalledWith(expect.stringMatching(/\/api\/users\/me$/));
+    expect(res).toEqual({ email: "a@b.com" });
+    expect(axios.get).toHaveBeenCalledWith(
+      expect.stringMatching(/\/api\/users\/me$/),
+    );
   });
 });
-

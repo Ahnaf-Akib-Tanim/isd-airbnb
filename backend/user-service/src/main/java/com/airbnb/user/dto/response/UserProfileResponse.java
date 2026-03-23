@@ -2,6 +2,7 @@ package com.airbnb.user.dto.response;
 
 import com.airbnb.user.model.enums.Role;
 import com.airbnb.user.model.enums.UserStatus;
+import com.airbnb.user.model.enums.VerificationStatus;
 import java.time.LocalDateTime;
 import java.util.List;
 import lombok.Builder;
@@ -18,16 +19,27 @@ public class UserProfileResponse {
     private String phoneNumber;
     private String profileImage;
     private String bio;
+    private List<String> favoriteHostIds;
     private Role role;
     private UserStatus status;
     private boolean emailVerified;
-    private LocalDateTime verificationEmailSentAt;
+    private VerificationStatus verificationStatus;
+    private LocalDateTime verificationRequestedAt;
+    private LocalDateTime verifiedAt;
+    private boolean canBook;
+    private boolean canHost;
 
     // Address
     private String street;
+    private String area;
+    private String village;
+    private String district;
+    private String division;
     private String city;
     private String country;
     private String zipCode;
+    private Double latitude;
+    private Double longitude;
 
     // Host info
     private boolean superhost;
@@ -41,8 +53,17 @@ public class UserProfileResponse {
     private List<String> propertyTypesOffered;
     private List<String> offeringHighlights;
     private List<String> hostPortfolioImages;
+    private Integer guestCapacity;
+    private Integer bedCount;
+    private List<String> bedTypes;
+    private Double nightlyRateUsd;
+    private boolean payLaterAllowed;
+    private Double payoutPercentage;
+    private String cancellationPolicy;
+    private List<Object> hostedProperties;
     private Integer totalListings;
     private Double averageRating;
+    private Integer reviewCount;
     private Double responseRate;
 
     private LocalDateTime lastLoginAt;
