@@ -18,10 +18,12 @@ import com.airbnb.user.model.enums.VerificationStatus;
 import com.airbnb.user.security.JwtUtil;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -434,6 +436,16 @@ public class UserService {
             .collect(Collectors.toList());
     }
 
+    public Page<UserProfileResponse> getHostSuggestions(
+        String location,
+        int page,
+        int limit
+    ) {
+        return userPersistenceService
+            .findHosts(location, page, limit)
+            .map(this::mapToProfileResponse);
+    }
+
     public void suspendUser(String userId) {
         User user = userPersistenceService
             .findByUserId(userId)
@@ -766,6 +778,14 @@ public class UserService {
             .bedCount(user.getBedCount())
             .bedTypes(user.getBedTypes())
             .nightlyRateUsd(user.getNightlyRateUsd())
+            .payLaterAllowed(user.isPayLaterAllowed())
+            .payoutPercentage(user.getPayoutPercentage())
+            .cancellationPolicy(user.getCancellationPolicy())
+            .hostedProperties(
+                user.getHostedProperties() != null
+                    ? new java.util.ArrayList<>(user.getHostedProperties())
+                    : java.util.List.of()
+            )
             .totalListings(user.getTotalListings())
             .averageRating(user.getAverageRating())
             .reviewCount(user.getReviewCount())
