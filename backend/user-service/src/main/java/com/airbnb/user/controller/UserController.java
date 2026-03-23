@@ -90,6 +90,18 @@ public class UserController {
         return ResponseEntity.ok(userService.getAllUsers());
     }
 
+    @GetMapping("/hosts/suggestions")
+    public ResponseEntity<List<UserProfileResponse>> getHostSuggestions(
+        @RequestParam(defaultValue = "") String location,
+        @RequestParam(defaultValue = "0") int page,
+        @RequestParam(defaultValue = "50") int limit
+    ) {
+        return ResponseEntity.ok(
+            userService.getHostSuggestions(location, page, limit)
+                .getContent()
+        );
+    }
+
     @PutMapping("/admin/{userId}/suspend")
     public ResponseEntity<String> suspendUser(@PathVariable String userId) {
         userService.suspendUser(userId);

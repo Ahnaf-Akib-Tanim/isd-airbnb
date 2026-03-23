@@ -56,6 +56,44 @@
     user-select: none;
 }
 
+/* Center tabs */
+.navbar__center {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+    height: 100%;
+}
+
+.navbar__tab {
+    background: transparent;
+    border: none;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #717171;
+    padding: 10px 16px;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.navbar__tab-icon {
+    font-size: 1.2rem;
+}
+
+.navbar__tab:hover {
+    background: #f7f7f7;
+    color: #222;
+}
+
+.navbar__tab--active {
+    color: #222;
+    font-weight: 600;
+}
+
 /* Search (home only) */
 .navbar__search {
     display: flex;

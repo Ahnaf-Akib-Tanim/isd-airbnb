@@ -4,6 +4,7 @@ import HostLocationMap from "../components/HostLocationMap";
 import { useAuth } from "../context/AuthContext";
 import authService from "../services/authService";
 import { readFileAsDataUrl, readFilesAsDataUrls } from "../utils/fileUtils";
+import Footer from "../components/Footer";
 
 const sectionCardStyle = {
   padding: "12px",
@@ -882,6 +883,7 @@ const ProfilePage = () => {
           )}
         </div>
       </section>
+      <Footer />
     </div>
   );
 };
