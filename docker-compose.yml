@@ -31,6 +31,8 @@ services:
       - NOTIFICATION_SERVICE_URL=http://notification-service:8087
       - FRONTEND_BASE_URL=${FRONTEND_BASE_URL:-http://localhost:3000}
       - SPRING_PROFILES_ACTIVE=docker
+      - HOST_SEED_ENABLED=false
+      - HOST_SEED_COUNT=10
     networks:
       - airbnb-network
     restart: unless-stopped
@@ -43,6 +45,7 @@ services:
     environment:
       - SPRING_DATA_MONGODB_URI=${MONGO_URI_BOOKING}
       - SPRING_PROFILES_ACTIVE=docker
+      - NOTIFICATION_SERVICE_URL=http://notification-service:8087
     networks:
       - airbnb-network
     restart: unless-stopped

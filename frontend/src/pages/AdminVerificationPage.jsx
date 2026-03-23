@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { toast } from "react-toastify";
 import authService from "../services/authService";
+import Footer from "../components/Footer";
 
 const formatDateTime = (value) => {
   if (!value) return "-";
@@ -301,6 +302,7 @@ const AdminVerificationPage = () => {
           </div>
         </div>
       </section>
+      <Footer />
     </div>
   );
 };
