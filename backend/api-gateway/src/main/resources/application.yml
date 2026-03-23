@@ -65,7 +65,7 @@ spring:
 
       globalcors:
         corsConfigurations:
-          '[/**]':
+          "[/**]":
             allowedOrigins:
               - "http://localhost:3000"
               - "http://localhost:5173"
@@ -83,6 +83,7 @@ spring:
 
       default-filters:
         - AddResponseHeader=X-Gateway, ISD-Airbnb-Gateway
+        - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials, RETAIN_FIRST
 
 management:
   endpoints:

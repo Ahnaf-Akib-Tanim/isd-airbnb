@@ -1,0 +1,30 @@
+Backend and Atlas setup:
+
+1. Copy .env.example to .env
+2. Put your Atlas MongoDB connection strings in all MONGO_URI_* variables
+3. Start the stack:
+   docker-compose down --remove-orphans
+   docker-compose up --build
+
+Important:
+- docker-compose.yml is now configured for Atlas only.
+- It no longer starts a local MongoDB container.
+- If MONGO_URI_* is missing or wrong, the services will fail to connect.
+- Old local Docker Mongo volumes do not matter once you switch to Atlas URIs.
+
+Frontend:
+
+cd "C:\Buet\CSE 326 ISD\Airbnb project\frontend"
+npm install
+npm start
+
+Open:
+http://localhost:3000
+
+Admin:
+- Admin login route: http://localhost:3000/admin/login
+- Admin verification queue: http://localhost:3000/admin/verification-requests
+
+Notes:
+- If your Atlas IP access list does not allow your current network, Mongo connections will fail.
+- Make sure Atlas database users have permission for all service databases.

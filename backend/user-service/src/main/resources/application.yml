@@ -7,8 +7,10 @@ spring:
 
   data:
     mongodb:
-      uri: ${SPRING_DATA_MONGODB_URI:mongodb+srv://tanim:tanim@cluster0.mongodb.net/userdb?retryWrites=true&w=majority&appName=ISD+Airbnb}
-      database: userdb
+      # Prefer setting SPRING_DATA_MONGODB_URI from environment (cloud/local).
+      # Fallback is local MongoDB for dev machines.
+      uri: ${SPRING_DATA_MONGODB_URI:mongodb://localhost:27017/userdb}
+      database: ${SPRING_DATA_MONGODB_DATABASE:userdb}
 
   # Disable Spring Security auto-config for DataSource (MongoDB only)
   autoconfigure:
@@ -18,8 +20,15 @@ spring:
 # JWT Configuration
 jwt:
   secret: ${JWT_SECRET:defaultSuperSecretKeyForDevOnlyChangeInProd}
-  expiry: ${JWT_EXPIRY:86400000}   # 24 hours in ms
-  refresh-expiry: ${JWT_REFRESH_EXPIRY:604800000}  # 7 days in ms
+  expiry: ${JWT_EXPIRY:86400000} # 24 hours in ms
+  refresh-expiry: ${JWT_REFRESH_EXPIRY:604800000} # 7 days in ms
+
+app:
+  frontend-base-url: ${FRONTEND_BASE_URL:http://localhost:3000}
+
+services:
+  notification-service:
+    url: ${NOTIFICATION_SERVICE_URL:http://localhost:8087}
 
 # Actuator
 management:
@@ -40,6 +49,7 @@ logging:
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
 
+
 # Spring profiles
 ---
 spring:
@@ -49,7 +59,6 @@ spring:
   data:
     mongodb:
       uri: ${SPRING_DATA_MONGODB_URI}
-
 ---
 spring:
   config:
