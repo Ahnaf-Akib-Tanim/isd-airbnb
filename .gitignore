@@ -7,6 +7,12 @@
 *.env
 
 # ========================
+# Seed/demo credentials (do not commit by default)
+# ========================
+host_seed_passwords*.txt
+host_seed_passwords*.csv
+
+# ========================
 # Java / Maven
 # ========================
 **/target/
