@@ -1,6 +1,17 @@
 package com.airbnb.user.service;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.stream.Collectors;
+
+import org.springframework.data.domain.Page;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
+
 import com.airbnb.user.dto.request.CreateNotificationRequest;
+import com.airbnb.user.dto.request.ForgotPasswordRequest;
 import com.airbnb.user.dto.request.LoginRequest;
 import com.airbnb.user.dto.request.RegisterRequest;
 import com.airbnb.user.dto.request.UpdateProfileRequest;
@@ -16,17 +27,9 @@ import com.airbnb.user.model.enums.Role;
 import com.airbnb.user.model.enums.UserStatus;
 import com.airbnb.user.model.enums.VerificationStatus;
 import com.airbnb.user.security.JwtUtil;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.util.Comparator;
-import java.util.List;
-import java.util.stream.Collectors;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.Page;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
 
 @Service
 @RequiredArgsConstructor
@@ -192,6 +195,43 @@ public class UserService {
             .message(
                 "Direct email-link verification is disabled. Account verification is now approved by an admin through the notification workflow."
             )
+            .build();
+    }
+
+    public VerificationResponse resetPassword(ForgotPasswordRequest request) {
+        // Validate passwords match
+        if (!request.getNewPassword().equals(request.getConfirmPassword())) {
+            return VerificationResponse.builder()
+                .success(false)
+                .message("New password and confirm password do not match.")
+                .build();
+        }
+
+        String normalizedEmail = request.getEmail().toLowerCase().trim();
+
+        // Find user by email and phone number
+        var userOpt = userPersistenceService.findByEmailAndPhoneNumber(
+            normalizedEmail, request.getPhoneNumber()
+        );
+
+        if (userOpt.isEmpty()) {
+            return VerificationResponse.builder()
+                .success(false)
+                .message("No account found with the provided email and phone number combination.")
+                .build();
+        }
+
+        User user = userOpt.get();
+
+        // Update password
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        userPersistenceService.save(user);
+
+        log.info("Password reset successful for user: {}", user.getEmail());
+
+        return VerificationResponse.builder()
+            .success(true)
+            .message("Password has been reset successfully. You can now log in with your new password.")
             .build();
     }
 

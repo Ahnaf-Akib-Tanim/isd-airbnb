@@ -127,6 +127,11 @@ export const getAdminUsers = async () => {
   return response.data;
 };
 
+export const forgotPassword = async (data) => {
+  const response = await axios.post(`${BASE_URL}/forgot-password`, data);
+  return response.data;
+};
+
 export const getCurrentUser = () => {
   try {
     const user = localStorage.getItem("user");
@@ -158,6 +163,7 @@ const authService = {
   getMyProfile,
   updateMyProfile,
   changePassword,
+  forgotPassword,
   getUserById,
   getVerificationRequests,
   approveVerificationRequest,
