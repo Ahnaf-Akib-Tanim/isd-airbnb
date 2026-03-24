@@ -53,12 +53,42 @@ public class BookingController {
         @RequestBody(required = false) Map<String, String> body
     ) {
         String reason = body != null ? body.get("cancellationReason") : null;
-        return ResponseEntity.ok(bookingService.cancelBooking(id, reason));
+        String cancelledBy = body != null ? body.get("cancelledBy") : "CUSTOMER";
+        return ResponseEntity.ok(bookingService.cancelBooking(id, reason, cancelledBy));
     }
 
     @PutMapping("/{id}/checkin")
     public ResponseEntity<Booking> checkinBooking(@PathVariable String id) {
         return ResponseEntity.ok(bookingService.updateBookingStatus(id, BookingStatus.CHECKED_IN));
+    }
+
+    @PutMapping("/{id}/host-checkin")
+    public ResponseEntity<Booking> hostConfirmCheckIn(
+        @PathVariable String id,
+        @RequestParam String hostId
+    ) {
+        return ResponseEntity.ok(bookingService.hostConfirmCheckIn(id, hostId));
+    }
+
+    @PutMapping("/{id}/host-checkout")
+    public ResponseEntity<Booking> hostConfirmCheckOut(
+        @PathVariable String id,
+        @RequestParam String hostId
+    ) {
+        return ResponseEntity.ok(bookingService.hostConfirmCheckOut(id, hostId));
+    }
+
+    @PutMapping("/{id}/process-payment")
+    public ResponseEntity<Booking> processPayment(
+        @PathVariable String id,
+        @RequestParam String paymentMethod
+    ) {
+        return ResponseEntity.ok(bookingService.processPayment(id, paymentMethod));
+    }
+
+    @PutMapping("/{id}/approve-payment")
+    public ResponseEntity<Booking> approvePayment(@PathVariable String id) {
+        return ResponseEntity.ok(bookingService.approvePayment(id));
     }
 
     @PutMapping("/{id}/complete")
