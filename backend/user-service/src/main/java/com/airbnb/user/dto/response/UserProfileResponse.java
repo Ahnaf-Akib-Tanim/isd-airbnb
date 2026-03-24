@@ -57,6 +57,10 @@ public class UserProfileResponse {
     private Integer bedCount;
     private List<String> bedTypes;
     private Double nightlyRateUsd;
+    private boolean payLaterAllowed;
+    private Double payoutPercentage;
+    private String cancellationPolicy;
+    private List<Object> hostedProperties;
     private Integer totalListings;
     private Double averageRating;
     private Integer reviewCount;

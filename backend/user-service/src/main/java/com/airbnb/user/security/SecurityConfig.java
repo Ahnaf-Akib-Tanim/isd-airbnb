@@ -1,7 +1,7 @@
 package com.airbnb.user.security;
 
 import java.util.List;
-import lombok.RequiredArgsConstructor;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -15,6 +15,8 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import lombok.RequiredArgsConstructor;
 
 @Configuration
 @EnableWebSecurity
@@ -36,9 +38,14 @@ public class SecurityConfig {
                     .requestMatchers(
                         "/api/users/register",
                         "/api/users/login",
-                        "/api/users/verify-email"
+                        "/api/users/verify-email",
+                        "/api/users/forgot-password"
                     )
                     .permitAll()
+                    .requestMatchers("/api/users/hosts/**").permitAll()
+                    // Public: let anyone view a host profile by userId (for listing pages)
+                    .requestMatchers("/api/users/*/access").permitAll()
+                    .requestMatchers("/api/users/*").permitAll()
                     .requestMatchers("/actuator/**")
                     .permitAll()
                     .requestMatchers("/api/users/admin/**")

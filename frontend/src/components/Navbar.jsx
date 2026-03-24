@@ -62,10 +62,22 @@ const Navbar = () => {
           <span className="navbar__logo-text">airbnb</span>
         </Link>
 
-        {/* ── Center search bar (home page only) ── */}
-        {isHomePage && (
+        {/* ── Center tabs (home page only) ── */}
+        {isHomePage ? (
+          <div className="navbar__center">
+            <button className="navbar__tab navbar__tab--active">
+              <span className="navbar__tab-icon">🏠</span>
+              Homes
+            </button>
+            <button className="navbar__tab">
+              <span className="navbar__tab-icon">🎭</span>
+              Experiences
+            </button>
+          </div>
+        ) : (
+          /* ── Search pill (inner pages) ── */
           <div className="navbar__search">
-            <button className="navbar__search-bar">
+            <button className="navbar__search-bar" onClick={() => navigate("/search")}>
               <span className="navbar__search-item">Anywhere</span>
               <span className="navbar__search-divider" />
               <span className="navbar__search-item">Any week</span>
@@ -220,6 +232,23 @@ const Navbar = () => {
                       </button>
                     )}
 
+                    {user?.role === "ADMIN" && (
+                      <button
+                        className="navbar__dropdown-item"
+                        onClick={() =>
+                          handleMenuClick("/admin/bookings")
+                        }
+                      >
+                        <svg viewBox="0 0 32 32" aria-hidden="true">
+                          <path
+                            d="M26 2H6a2 2 0 0 0-2 2v24a2 2 0 0 0 2 2h20a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2zm-1 25H7V5h18v22zM11 11h10v2H11zm0 5h10v2H11zm0 5h6v2h-6z"
+                            fill="currentColor"
+                          />
+                        </svg>
+                        Manage Bookings
+                      </button>
+                    )}
+
                     {user?.role === "HOST" && (
                       <button
                         className="navbar__dropdown-item"
@@ -238,7 +267,7 @@ const Navbar = () => {
                     {user?.role !== "ADMIN" && (
                       <button
                         className="navbar__dropdown-item"
-                        onClick={() => handleMenuClick("/bookings")}
+                        onClick={() => handleMenuClick("/my-trips")}
                       >
                         <svg viewBox="0 0 32 32" aria-hidden="true">
                           <path
@@ -246,7 +275,7 @@ const Navbar = () => {
                             fill="currentColor"
                           />
                         </svg>
-                        My Bookings
+                        My Trips
                       </button>
                     )}
 

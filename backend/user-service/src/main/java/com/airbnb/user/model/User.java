@@ -101,6 +101,25 @@ public class User {
 
     private Double nightlyRateUsd;
 
+    @Builder.Default
+    private boolean payLaterAllowed = false;
+
+    // Host payout percentage (e.g., 80 means host gets 80% of booking)
+    @Builder.Default
+    private Double payoutPercentage = 80.0;
+
+    // Booking capacity per property (1-5)
+    @Builder.Default
+    private Integer bookingCapacity = 1;
+
+    // Cancellation policy: FLEXIBLE, MODERATE, STRICT
+    @Builder.Default
+    private String cancellationPolicy = "MODERATE";
+
+    // Multiple hosted properties
+    @Builder.Default
+    private List<HostedProperty> hostedProperties = new ArrayList<>();
+
     private Integer totalListings;
     private Double averageRating;
     private Integer reviewCount;
