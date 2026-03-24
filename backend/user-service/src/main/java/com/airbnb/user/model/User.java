@@ -108,6 +108,10 @@ public class User {
     @Builder.Default
     private Double payoutPercentage = 80.0;
 
+    // Booking capacity per property (1-5)
+    @Builder.Default
+    private Integer bookingCapacity = 1;
+
     // Cancellation policy: FLEXIBLE, MODERATE, STRICT
     @Builder.Default
     private String cancellationPolicy = "MODERATE";
