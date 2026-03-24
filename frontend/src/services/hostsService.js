@@ -113,6 +113,27 @@ export const searchHosts = async ({
       console.log(`Filtered by guest capacity (${guests}): ${beforeFilter} -> ${hosts.length}`);
     }
 
+    // If no hosts found for a location filter, fallback to all hosts:
+    if (hosts.length === 0 && location && location.trim()) {
+      console.info(`No hosts found for location '${location}', retrying without location filter`);
+      const fallbackResponse = await fetchWithRetry(async () =>
+        api.get("/api/users/hosts/suggestions", {
+          params: {
+            location: "",
+            page: 0,
+            limit: 200,
+          },
+          timeout: TIMEOUT,
+        })
+      );
+      hosts = Array.isArray(fallbackResponse.data) ? fallbackResponse.data : [];
+      if (guests > 0) {
+        const beforeFilter = hosts.length;
+        hosts = hosts.filter((h) => (h.guestCapacity || 2) >= guests);
+        console.log(`Fallback guest capacity filter (${guests}): ${beforeFilter} -> ${hosts.length}`);
+      }
+    }
+
     // If dates provided, check availability (non-blocking)
     if (checkin && checkout && hosts.length > 0) {
       try {

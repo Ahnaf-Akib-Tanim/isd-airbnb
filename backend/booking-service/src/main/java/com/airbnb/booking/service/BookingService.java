@@ -9,6 +9,7 @@ import com.airbnb.booking.repository.BookingRepository;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -19,15 +20,40 @@ public class BookingService {
 
     private final BookingRepository bookingRepository;
     private final NotificationClient notificationClient;
+    private final WebSocketService webSocketService;
 
     public Booking createBooking(Booking booking) {
+        // Check for overlapping bookings
+        if (hasOverlappingBooking(booking)) {
+            throw new RuntimeException("Property is already booked for the requested dates. Please choose different dates.");
+        }
+
         booking.setCreatedAt(LocalDateTime.now());
         booking.setUpdatedAt(LocalDateTime.now());
         booking.setStatus(BookingStatus.PENDING);
+        
+        // Handle payment status based on booking creation
         if (booking.getPaymentStatus() == null) {
+            // Default to PENDING for immediate payment
             booking.setPaymentStatus(PaymentStatus.PENDING);
         }
+        
+        // Set appropriate status based on payment choice
+        if (booking.getPaymentStatus() == PaymentStatus.PAY_LATER) {
+            booking.setStatus(BookingStatus.NOT_PAID_YET);
+        }
+        
         Booking saved = bookingRepository.save(booking);
+
+        // Send real-time WebSocket notifications
+        webSocketService.notifyNewBooking(saved);
+
+        String paymentInfo = "";
+        if (booking.getPaymentStatus() == PaymentStatus.PAY_LATER) {
+            paymentInfo = " [PAY LATER - Guest will pay before check-in]";
+        } else if (booking.getPaymentStatus() == PaymentStatus.PENDING) {
+            paymentInfo = " [IMMEDIATE PAYMENT REQUIRED]";
+        }
 
         // Notify Admin
         notificationClient.sendNotification(
@@ -41,7 +67,7 @@ public class BookingService {
                     " to " + booking.getCheckOutDate() +
                     " — Property: " + (booking.getPropertyName() != null ? booking.getPropertyName() : "N/A") +
                     " | Total: $" + booking.getTotalPrice() +
-                    (booking.getPaymentStatus() == PaymentStatus.PAY_LATER ? " [PAY LATER]" : "")
+                    paymentInfo
                 )
                 .type("BOOKING_REQUEST")
                 .actionTargetUserId(saved.getId())
@@ -58,7 +84,8 @@ public class BookingService {
                     "You have a new booking request from guest " + booking.getGuestId() +
                     " for " + booking.getCheckInDate() +
                     " to " + booking.getCheckOutDate() +
-                    ". Booking total: $" + booking.getTotalPrice()
+                    ". Booking total: $" + booking.getTotalPrice() +
+                    (booking.getPaymentStatus() == PaymentStatus.PAY_LATER ? " (Pay Later)" : " (Immediate Payment)")
                 )
                 .type("BOOKING_REQUEST")
                 .actionTargetUserId(saved.getId())
@@ -67,17 +94,130 @@ public class BookingService {
         );
 
         // Notify Guest that booking was created
+        String guestMessage = booking.getPaymentStatus() == PaymentStatus.PAY_LATER
+            ? "Your booking request has been submitted and is awaiting admin approval. You can complete payment before check-in."
+            : "Your booking request has been submitted. Please complete the payment to confirm your reservation.";
+            
         notificationClient.sendNotification(
             CreateNotificationRequest.builder()
                 .recipientUserId(booking.getGuestId())
                 .title("Booking Request Submitted")
-                .message(
-                    "Your booking request for " + booking.getCheckInDate() +
-                    " to " + booking.getCheckOutDate() +
-                    " has been submitted and is awaiting admin approval."
-                )
+                .message(guestMessage)
                 .type("BOOKING_REQUEST")
                 .actionTargetUserId(saved.getId())
+                .status("UNREAD")
+                .build()
+        );
+
+        return saved;
+    }
+
+    public Booking processPayment(String id, String paymentMethod) {
+        Booking booking = getBooking(id);
+        
+        // Verify booking is in NOT_PAID_YET status
+        if (booking.getStatus() != BookingStatus.NOT_PAID_YET) {
+            throw new RuntimeException("Payment can only be processed for bookings with 'Pay Later' option");
+        }
+        
+        // Update payment status
+        booking.setPaymentStatus(PaymentStatus.COMPLETED);
+        booking.setStatus(BookingStatus.CONFIRMED);
+        booking.setUpdatedAt(LocalDateTime.now());
+        Booking saved = bookingRepository.save(booking);
+
+        // Notify Guest
+        notificationClient.sendNotification(
+            CreateNotificationRequest.builder()
+                .recipientUserId(booking.getGuestId())
+                .title("Payment Received! ✅")
+                .message(
+                    "Your payment of $" + booking.getTotalPrice() +
+                    " for " + booking.getPropertyName() +
+                    " has been processed successfully. Your booking is now confirmed!"
+                )
+                .type("PAYMENT_PROCESSED")
+                .actionTargetUserId(booking.getId())
+                .status("UNREAD")
+                .build()
+        );
+
+        // Notify Host
+        notificationClient.sendNotification(
+            CreateNotificationRequest.builder()
+                .recipientUserId(booking.getHostId())
+                .title("Guest Payment Completed")
+                .message(
+                    "Guest " + booking.getGuestId() +
+                    " has completed payment for " + booking.getPropertyName() +
+                    ". Booking is now confirmed for " + booking.getCheckInDate() +
+                    " to " + booking.getCheckOutDate() + "."
+                )
+                .type("HOST_PAYMENT_NOTIFICATION")
+                .actionTargetUserId(booking.getId())
+                .status("UNREAD")
+                .build()
+        );
+
+        // Notify Admin
+        notificationClient.sendNotification(
+            CreateNotificationRequest.builder()
+                .recipientRole("ADMIN")
+                .title("Payment Processed - Approval Needed")
+                .message(
+                    "Guest " + booking.getGuestId() +
+                    " has paid $" + booking.getTotalPrice() +
+                    " for booking #" + booking.getId().substring(0, 8) +
+                    ". Please approve the payment to finalize confirmation."
+                )
+                .type("ADMIN_PAYMENT_APPROVAL")
+                .actionTargetUserId(booking.getId())
+                .status("UNREAD")
+                .build()
+        );
+
+        return saved;
+    }
+
+    public Booking approvePayment(String id) {
+        Booking booking = getBooking(id);
+        
+        // Verify payment is completed
+        if (booking.getPaymentStatus() != PaymentStatus.COMPLETED) {
+            throw new RuntimeException("Payment must be completed before approval");
+        }
+        
+        // Update status to confirmed (it should already be confirmed, but ensure consistency)
+        booking.setStatus(BookingStatus.CONFIRMED);
+        booking.setUpdatedAt(LocalDateTime.now());
+        Booking saved = bookingRepository.save(booking);
+
+        // Notify Guest
+        notificationClient.sendNotification(
+            CreateNotificationRequest.builder()
+                .recipientUserId(booking.getGuestId())
+                .title("Booking Fully Confirmed! 🎉")
+                .message(
+                    "Your payment has been approved and your booking for " + booking.getPropertyName() +
+                    " is fully confirmed. We look forward to hosting you!"
+                )
+                .type("BOOKING_FULLY_CONFIRMED")
+                .actionTargetUserId(booking.getId())
+                .status("UNREAD")
+                .build()
+        );
+
+        // Notify Host
+        notificationClient.sendNotification(
+            CreateNotificationRequest.builder()
+                .recipientUserId(booking.getHostId())
+                .title("Booking Fully Confirmed")
+                .message(
+                    "The booking for " + booking.getPropertyName() +
+                    " has been fully confirmed. Guest payment approved."
+                )
+                .type("HOST_BOOKING_CONFIRMED")
+                .actionTargetUserId(booking.getId())
                 .status("UNREAD")
                 .build()
         );
@@ -108,6 +248,11 @@ public class BookingService {
         booking.setStatus(BookingStatus.CONFIRMED);
         booking.setUpdatedAt(LocalDateTime.now());
         Booking saved = bookingRepository.save(booking);
+
+        // Send real-time WebSocket notifications
+        webSocketService.notifyBookingStatusChange(saved, "ADMIN");
+        webSocketService.notifyBookingStatusChange(saved, "HOST");
+        webSocketService.notifyBookingStatusChange(saved, "GUEST");
 
         String payNote = booking.getPaymentStatus() == PaymentStatus.PAY_LATER
             ? " You have chosen to pay later before check-in." : " Your payment has been processed.";
@@ -149,12 +294,76 @@ public class BookingService {
         return saved;
     }
 
-    public Booking cancelBooking(String id, String cancellationReason) {
+    public Booking hostConfirmCheckIn(String id, String hostId) {
         Booking booking = getBooking(id);
-        booking.setStatus(BookingStatus.CANCELLED);
-        if (cancellationReason != null && !cancellationReason.isBlank()) {
-            booking.setCancellationReason(cancellationReason);
+        
+        // Verify that the hostId matches the booking's host
+        if (!booking.getHostId().equals(hostId)) {
+            throw new RuntimeException("Host can only confirm check-in for their own bookings");
         }
+        
+        // Verify booking is in confirmed status
+        if (booking.getStatus() != BookingStatus.CONFIRMED) {
+            throw new RuntimeException("Booking must be confirmed before check-in");
+        }
+        
+        booking.setStatus(BookingStatus.CHECKED_IN);
+        booking.setUpdatedAt(LocalDateTime.now());
+        Booking saved = bookingRepository.save(booking);
+
+        // Send real-time WebSocket notifications
+        webSocketService.notifyBookingStatusChange(saved, "GUEST");
+        webSocketService.notifyBookingStatusChange(saved, "HOST");
+
+        // Notify Guest
+        notificationClient.sendNotification(
+            CreateNotificationRequest.builder()
+                .recipientUserId(booking.getGuestId())
+                .title("Check-In Confirmed! 🏠")
+                .message(
+                    "Your check-in for " + booking.getPropertyName() +
+                    " has been confirmed by the host. Enjoy your stay!"
+                )
+                .type("GUEST_CHECKED_IN")
+                .actionTargetUserId(booking.getId())
+                .status("UNREAD")
+                .build()
+        );
+
+        // Notify Admin
+        notificationClient.sendNotification(
+            CreateNotificationRequest.builder()
+                .recipientRole("ADMIN")
+                .title("Guest Checked In")
+                .message(
+                    "Guest " + booking.getGuestId() +
+                    " has checked in for " + booking.getPropertyName() +
+                    " (" + booking.getCheckInDate() + " to " + booking.getCheckOutDate() + ")" +
+                    " confirmed by host " + booking.getHostId()
+                )
+                .type("ADMIN_CHECKIN_NOTIFICATION")
+                .actionTargetUserId(booking.getId())
+                .status("UNREAD")
+                .build()
+        );
+
+        return saved;
+    }
+
+    public Booking hostConfirmCheckOut(String id, String hostId) {
+        Booking booking = getBooking(id);
+        
+        // Verify that hostId matches the booking's host
+        if (!booking.getHostId().equals(hostId)) {
+            throw new RuntimeException("Host can only confirm check-out for their own bookings");
+        }
+        
+        // Verify booking is in checked-in status
+        if (booking.getStatus() != BookingStatus.CHECKED_IN) {
+            throw new RuntimeException("Booking must be checked-in before check-out");
+        }
+        
+        booking.setStatus(BookingStatus.COMPLETED);
         booking.setUpdatedAt(LocalDateTime.now());
         Booking saved = bookingRepository.save(booking);
 
@@ -162,37 +371,140 @@ public class BookingService {
         notificationClient.sendNotification(
             CreateNotificationRequest.builder()
                 .recipientUserId(booking.getGuestId())
-                .title("Booking Cancelled")
+                .title("Check-Out Completed! 👋")
                 .message(
-                    "Your booking for " + booking.getPropertyName() +
-                    " from " + booking.getCheckInDate() +
-                    " to " + booking.getCheckOutDate() +
-                    " has been cancelled." +
-                    (cancellationReason != null ? " Reason: " + cancellationReason : "")
+                    "Your check-out for " + booking.getPropertyName() +
+                    " has been confirmed. Thank you for staying with us!"
                 )
-                .type("BOOKING_CANCELLED")
+                .type("GUEST_CHECKED_OUT")
                 .actionTargetUserId(booking.getId())
                 .status("UNREAD")
                 .build()
         );
 
-        // Notify Host
+        // Notify Admin about pending payout
         notificationClient.sendNotification(
             CreateNotificationRequest.builder()
-                .recipientUserId(booking.getHostId())
-                .title("Booking Cancelled")
+                .recipientRole("ADMIN")
+                .title("Ready for Payout 💰")
                 .message(
-                    "A booking for your property " + booking.getPropertyName() +
-                    " from " + booking.getCheckInDate() +
-                    " to " + booking.getCheckOutDate() +
-                    " has been cancelled." +
-                    (cancellationReason != null ? " Reason: " + cancellationReason : "")
+                    "Booking #" + booking.getId().substring(0, 8) +
+                    " for " + booking.getPropertyName() +
+                    " is completed. Host " + booking.getHostId() +
+                    " is ready for payout. Total: $" + booking.getTotalPrice()
                 )
-                .type("BOOKING_CANCELLED")
+                .type("ADMIN_PAYOUT_REQUEST")
                 .actionTargetUserId(booking.getId())
                 .status("UNREAD")
                 .build()
         );
+
+        return saved;
+    }
+
+    public Booking cancelBooking(String id, String cancellationReason, String cancelledBy) {
+        Booking booking = getBooking(id);
+        booking.setStatus(BookingStatus.CANCELLED);
+        if (cancellationReason != null && !cancellationReason.isBlank()) {
+            booking.setCancellationReason(cancellationReason);
+        }
+        booking.setUpdatedAt(LocalDateTime.now());
+        
+        // Calculate refund based on who cancelled and the policy
+        BigDecimal refundAmount = calculateRefundAmount(booking, cancelledBy);
+        booking.setRefundAmount(refundAmount);
+        
+        // Update payment status to refunded if there's a refund
+        if (refundAmount.compareTo(BigDecimal.ZERO) > 0) {
+            booking.setPaymentStatus(PaymentStatus.REFUNDED);
+        }
+        
+        Booking saved = bookingRepository.save(booking);
+
+        if ("HOST".equals(cancelledBy)) {
+            // Host cancellation - full refund to customer
+            notificationClient.sendNotification(
+                CreateNotificationRequest.builder()
+                    .recipientUserId(booking.getGuestId())
+                    .title("Booking Cancelled by Host - Full Refund")
+                    .message(
+                        "Your booking for " + booking.getPropertyName() +
+                        " has been cancelled by the host. You will receive a full refund of $" + refundAmount +
+                        ". Reason: " + (cancellationReason != null ? cancellationReason : "No reason provided")
+                    )
+                    .type("HOST_CANCELLATION")
+                    .actionTargetUserId(booking.getId())
+                    .status("UNREAD")
+                    .build()
+            );
+
+            // Notify Admin about host cancellation
+            notificationClient.sendNotification(
+                CreateNotificationRequest.builder()
+                    .recipientRole("ADMIN")
+                    .title("Host Cancellation - Refund Required")
+                    .message(
+                        "Host " + booking.getHostId() +
+                        " cancelled booking #" + booking.getId().substring(0, 8) +
+                        ". Full refund of $" + refundAmount + " to be processed to guest " + booking.getGuestId() +
+                        ". Reason: " + (cancellationReason != null ? cancellationReason : "No reason provided")
+                    )
+                    .type("ADMIN_HOST_CANCELLATION")
+                    .actionTargetUserId(booking.getId())
+                    .status("UNREAD")
+                    .build()
+            );
+        } else {
+            // Customer cancellation - refund according to host policy
+            notificationClient.sendNotification(
+                CreateNotificationRequest.builder()
+                    .recipientUserId(booking.getGuestId())
+                    .title("Booking Cancelled")
+                    .message(
+                        "Your booking for " + booking.getPropertyName() +
+                        " has been cancelled. Refund amount: $" + refundAmount +
+                        " based on the host's cancellation policy."
+                    )
+                    .type("CUSTOMER_CANCELLATION")
+                    .actionTargetUserId(booking.getId())
+                    .status("UNREAD")
+                    .build()
+            );
+
+            // Notify Host about customer cancellation
+            notificationClient.sendNotification(
+                CreateNotificationRequest.builder()
+                    .recipientUserId(booking.getHostId())
+                    .title("Guest Cancelled Booking")
+                    .message(
+                        "Guest " + booking.getGuestId() +
+                        " cancelled their booking for " + booking.getPropertyName() +
+                        ". Refund amount: $" + refundAmount +
+                        ". Reason: " + (cancellationReason != null ? cancellationReason : "No reason provided")
+                    )
+                    .type("GUEST_CANCELLATION")
+                    .actionTargetUserId(booking.getId())
+                    .status("UNREAD")
+                    .build()
+            );
+
+            // Notify Admin about customer cancellation
+            notificationClient.sendNotification(
+                CreateNotificationRequest.builder()
+                    .recipientRole("ADMIN")
+                    .title("Customer Cancellation")
+                    .message(
+                        "Customer " + booking.getGuestId() +
+                        " cancelled booking #" + booking.getId().substring(0, 8) +
+                        ". Refund amount: $" + refundAmount +
+                        " based on host policy."
+                    )
+                    .type("ADMIN_CUSTOMER_CANCELLATION")
+                    .actionTargetUserId(booking.getId())
+                    .status("UNREAD")
+                    .build()
+            );
+        }
 
         return saved;
     }
@@ -384,8 +696,18 @@ public class BookingService {
     }
 
     private BigDecimal calculateRefundAmount(Booking booking) {
+        return calculateRefundAmount(booking, "CUSTOMER");
+    }
+
+    private BigDecimal calculateRefundAmount(Booking booking, String cancelledBy) {
         if (booking.getTotalPrice() == null) return BigDecimal.ZERO;
 
+        // Host cancellation - always full refund
+        if ("HOST".equals(cancelledBy)) {
+            return booking.getTotalPrice();
+        }
+
+        // Customer cancellation - based on policy
         String policy = booking.getCancellationPolicy() != null ? booking.getCancellationPolicy() : "MODERATE";
         long daysUntilCheckIn = 0;
         if (booking.getCheckInDate() != null) {
@@ -404,5 +726,65 @@ public class BookingService {
         return booking.getTotalPrice()
             .multiply(BigDecimal.valueOf(refundPercent / 100))
             .setScale(2, RoundingMode.HALF_UP);
+    }
+
+    private boolean hasOverlappingBooking(Booking newBooking) {
+        // Get all existing bookings for the same host/property
+        List<Booking> existingBookings = bookingRepository.findByHostId(newBooking.getHostId());
+        
+        // Filter out non-conflicting bookings
+        return existingBookings.stream().anyMatch(existing -> {
+            // Skip if existing booking is cancelled or refunded
+            if (existing.getStatus() == BookingStatus.CANCELLED || existing.getStatus() == BookingStatus.REFUNDED) {
+                return false;
+            }
+            
+            // Check for date overlap
+            boolean datesOverlap = isDateRangeOverlapping(
+                newBooking.getCheckInDate(),
+                newBooking.getCheckOutDate(),
+                existing.getCheckInDate(),
+                existing.getCheckOutDate()
+            );
+            
+            if (!datesOverlap) {
+                return false;
+            }
+            
+            // Check capacity constraints
+            return isCapacityExceeded(existingBookings, newBooking);
+        });
+    }
+
+    private boolean isDateRangeOverlapping(LocalDate start1, LocalDate end1, LocalDate start2, LocalDate end2) {
+        return start1.isBefore(end2) && start2.isBefore(end1);
+    }
+
+    private boolean isCapacityExceeded(List<Booking> existingBookings, Booking newBooking) {
+        // Count active bookings for each overlapping day
+        // For simplicity, we'll check if total bookings would exceed capacity
+        // In a real implementation, you'd check day-by-day capacity
+        
+        // Get host's booking capacity (default to 1 if not set)
+        Integer capacity = getHostBookingCapacity(newBooking.getHostId());
+        
+        // Count overlapping bookings
+        long overlappingCount = existingBookings.stream()
+            .filter(existing -> isDateRangeOverlapping(
+                newBooking.getCheckInDate(),
+                newBooking.getCheckOutDate(),
+                existing.getCheckInDate(),
+                existing.getCheckOutDate()
+            ))
+            .count();
+        
+        // Add 1 for the new booking
+        return overlappingCount >= capacity;
+    }
+
+    private Integer getHostBookingCapacity(String hostId) {
+        // This would typically come from user service
+        // For now, default to 1, but this should be fetched from the host's profile
+        return 1; // Default capacity
     }
 }
