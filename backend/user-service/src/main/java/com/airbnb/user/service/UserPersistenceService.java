@@ -148,6 +148,14 @@ public class UserPersistenceService {
         };
     }
 
+    public Optional<User> findByEmailAndPhoneNumber(String email, String phoneNumber) {
+        Query query = Query.query(
+            Criteria.where("email").is(email)
+                .and("phoneNumber").is(phoneNumber)
+        );
+        return findFirst(query);
+    }
+
     private Optional<User> findFirst(Query query) {
         User admin = mongoTemplate.findOne(
             query,

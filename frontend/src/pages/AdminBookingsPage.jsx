@@ -1,25 +1,52 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
+import { toast } from "react-toastify";
+import Footer from "../components/Footer";
 import {
-  getAllBookings,
-  confirmBooking,
   cancelBooking,
   checkinBooking,
   completeBooking,
-  refundBooking,
+  confirmBooking,
+  getAllBookings,
   issuePayout,
+  refundBooking,
   updatePaymentStatus,
 } from "../services/bookingService";
-import { toast } from "react-toastify";
-import Footer from "../components/Footer";
+import api from "../utils/axiosConfig";
 import "./AdminBookingsPage.css";
 
 const STATUS_CONFIG = {
   PENDING: { label: "Pending", color: "#856404", bg: "#ffeeba", icon: "⏳" },
-  CONFIRMED: { label: "Confirmed", color: "#155724", bg: "#d4edda", icon: "✅" },
-  CANCELLED: { label: "Cancelled", color: "#721c24", bg: "#f8d7da", icon: "❌" },
-  CHECKED_IN: { label: "Checked In", color: "#004085", bg: "#cce5ff", icon: "🏨" },
-  COMPLETED: { label: "Completed", color: "#0c5460", bg: "#d1ecf1", icon: "🎉" },
-  REFUNDED: { label: "Refunded", color: "#383d41", bg: "#e2e3e5", icon: "💸" },
+  CONFIRMED: {
+    label: "Confirmed",
+    color: "#155724",
+    bg: "#d4edda",
+    icon: "✅",
+  },
+  NOT_PAID_YET: {
+    label: "Not Paid Yet",
+    color: "#856404",
+    bg: "#fff3cd",
+    icon: "💳",
+  },
+  CANCELLED: {
+    label: "Cancelled",
+    color: "#721c24",
+    bg: "#f8d7da",
+    icon: "❌",
+  },
+  CHECKED_IN: {
+    label: "Checked In",
+    color: "#004085",
+    bg: "#cce5ff",
+    icon: "🏨",
+  },
+  COMPLETED: {
+    label: "Completed",
+    color: "#0c5460",
+    bg: "#d1ecf1",
+    icon: "🎉",
+  },
+  REFUNDED: { label: "Refunded", color: "#6c757d", bg: "#e2e3e5", icon: "💸" },
 };
 
 const PAYMENT_CONFIG = {
@@ -65,7 +92,7 @@ const AdminBookingsPage = () => {
           } catch {
             cache[id] = { firstName: "Unknown", lastName: "" };
           }
-        })
+        }),
       );
       setUserCache(cache);
     } catch (err) {
@@ -91,9 +118,7 @@ const AdminBookingsPage = () => {
   const getUser = (id) => userCache[id] || {};
 
   const filteredBookings =
-    filter === "ALL"
-      ? bookings
-      : bookings.filter((b) => b.status === filter);
+    filter === "ALL" ? bookings : bookings.filter((b) => b.status === filter);
 
   const getAvailableActions = (booking) => {
     const actions = [];
@@ -130,16 +155,26 @@ const AdminBookingsPage = () => {
         });
         break;
       case "CANCELLED":
-        if (booking.paymentStatus !== "REFUNDED" && booking.paymentStatus !== "PAY_LATER") {
+        if (
+          booking.paymentStatus !== "REFUNDED" &&
+          booking.paymentStatus !== "PAY_LATER"
+        ) {
           actions.push({
             label: "Issue Refund 💸",
             fn: async () => {
-              if (!window.confirm(`Issue refund for this cancelled booking? Amount will be based on cancellation policy.`)) return;
+              if (
+                !window.confirm(
+                  `Issue refund for this cancelled booking? Amount will be based on cancellation policy.`,
+                )
+              )
+                return;
               try {
                 await refundBooking(booking.id);
                 toast.success("Refund issued! Guest has been notified.");
                 fetchBookings();
-              } catch (err) { toast.error("Failed to issue refund"); }
+              } catch (err) {
+                toast.error("Failed to issue refund");
+              }
             },
             className: "admin-btn--refund",
           });
@@ -150,14 +185,28 @@ const AdminBookingsPage = () => {
           actions.push({
             label: "Issue Payout 💰",
             fn: async () => {
-              if (!window.confirm(`Issue payout to host for this completed booking?`)) return;
+              if (
+                !window.confirm(
+                  `Issue payout to host for this completed booking?`,
+                )
+              )
+                return;
               try {
                 const updated = await issuePayout(booking.id);
-                const payoutAmt = updated.payoutAmount || Math.round((booking.totalPrice || 0) * ((booking.payoutPercentage || 80) / 100));
-                toast.success(`Payout of $${payoutAmt} issued to host! Host has been notified.`);
+                const payoutAmt =
+                  updated.payoutAmount ||
+                  Math.round(
+                    (booking.totalPrice || 0) *
+                      ((booking.payoutPercentage || 80) / 100),
+                  );
+                toast.success(
+                  `Payout of $${payoutAmt} issued to host! Host has been notified.`,
+                );
                 fetchBookings();
               } catch (err) {
-                toast.error(err.response?.data?.message || "Failed to issue payout");
+                toast.error(
+                  err.response?.data?.message || "Failed to issue payout",
+                );
               }
             },
             className: "admin-btn--complete",
@@ -175,7 +224,10 @@ const AdminBookingsPage = () => {
         break;
     }
     // For PAY_LATER bookings that are confirmed, add approve payment
-    if (booking.paymentStatus === "PAY_LATER" && ["CONFIRMED", "PENDING"].includes(booking.status)) {
+    if (
+      booking.paymentStatus === "PAY_LATER" &&
+      ["CONFIRMED", "PENDING"].includes(booking.status)
+    ) {
       actions.push({
         label: "Approve Pay Later",
         fn: async () => {
@@ -183,7 +235,9 @@ const AdminBookingsPage = () => {
             await updatePaymentStatus(booking.id, "COMPLETED");
             toast.success("Payment approved for pay-later booking!");
             fetchBookings();
-          } catch (err) { toast.error("Failed to approve payment"); }
+          } catch (err) {
+            toast.error("Failed to approve payment");
+          }
         },
         className: "admin-btn--approve",
       });
@@ -278,8 +332,11 @@ const AdminBookingsPage = () => {
                 {filteredBookings.map((booking) => {
                   const guest = getUser(booking.guestId);
                   const host = getUser(booking.hostId);
-                  const status = STATUS_CONFIG[booking.status] || STATUS_CONFIG.PENDING;
-                  const payment = PAYMENT_CONFIG[booking.paymentStatus] || PAYMENT_CONFIG.PENDING;
+                  const status =
+                    STATUS_CONFIG[booking.status] || STATUS_CONFIG.PENDING;
+                  const payment =
+                    PAYMENT_CONFIG[booking.paymentStatus] ||
+                    PAYMENT_CONFIG.PENDING;
                   const actions = getAvailableActions(booking);
 
                   return (
@@ -307,17 +364,19 @@ const AdminBookingsPage = () => {
                         <div className="admin-dates-cell">
                           <span>
                             {booking.checkInDate
-                              ? new Date(booking.checkInDate).toLocaleDateString(
-                                  "en-US",
-                                  { month: "short", day: "numeric" }
-                                )
+                              ? new Date(
+                                  booking.checkInDate,
+                                ).toLocaleDateString("en-US", {
+                                  month: "short",
+                                  day: "numeric",
+                                })
                               : "—"}
                           </span>
                           <span className="admin-date-arrow">→</span>
                           <span>
                             {booking.checkOutDate
                               ? new Date(
-                                  booking.checkOutDate
+                                  booking.checkOutDate,
                                 ).toLocaleDateString("en-US", {
                                   month: "short",
                                   day: "numeric",
@@ -326,9 +385,7 @@ const AdminBookingsPage = () => {
                           </span>
                         </div>
                       </td>
-                      <td className="admin-td-price">
-                        ${booking.totalPrice}
-                      </td>
+                      <td className="admin-td-price">${booking.totalPrice}</td>
                       <td>
                         <span
                           className="admin-badge"
@@ -340,9 +397,14 @@ const AdminBookingsPage = () => {
                           {status.icon} {status.label}
                         </span>
                         {booking.cancellationReason && (
-                          <div className="admin-cancellation-reason" title={booking.cancellationReason}>
-                            💬 {booking.cancellationReason.length > 40
-                              ? booking.cancellationReason.substring(0, 40) + "..."
+                          <div
+                            className="admin-cancellation-reason"
+                            title={booking.cancellationReason}
+                          >
+                            💬{" "}
+                            {booking.cancellationReason.length > 40
+                              ? booking.cancellationReason.substring(0, 40) +
+                                "..."
                               : booking.cancellationReason}
                           </div>
                         )}
@@ -360,11 +422,19 @@ const AdminBookingsPage = () => {
                       </td>
                       <td>
                         {booking.payoutIssued ? (
-                          <span style={{ color: "#2e7d32", fontWeight: 600, fontSize: 14 }}>
+                          <span
+                            style={{
+                              color: "#2e7d32",
+                              fontWeight: 600,
+                              fontSize: 14,
+                            }}
+                          >
                             ✓ ${booking.payoutAmount || "—"}
                           </span>
                         ) : booking.status === "COMPLETED" ? (
-                          <span style={{ color: "#b45309", fontSize: 13 }}>Pending</span>
+                          <span style={{ color: "#b45309", fontSize: 13 }}>
+                            Pending
+                          </span>
                         ) : (
                           <span style={{ color: "#ccc", fontSize: 13 }}>—</span>
                         )}

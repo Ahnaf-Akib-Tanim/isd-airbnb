@@ -13,7 +13,7 @@ import {
 } from "../utils/hostUtils";
 import { getOptimizedImageUrl } from "../utils/imageUtils";
 
-const ITEMS_PER_PAGE = 20;
+const ITEMS_PER_PAGE = 35; // 7 countries × 5 properties = 35 per page
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 const CACHE_KEY = "host_suggestions_cache";
 
@@ -23,21 +23,21 @@ const HomePage = () => {
   const [hosts, setHosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
-  // Search State
+  const [page, setPage] = useState(1);
+  const [retryCount, setRetryCount] = useState(0);
   const [locationQuery, setLocationQuery] = useState("");
   const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(null);
-  const [guestCount, setGuestCount] = useState(0);
+  const [guestCounts, setGuestCounts] = useState({
+    adults: 0,
+    children: 0,
+    infants: 0,
+    pets: 0,
+  });
   const [isGuestOpen, setIsGuestOpen] = useState(false);
-
-  // Pagination, Sorting, Filtering, Tax
-  const [page, setPage] = useState(1);
   const [sortBy, setSortBy] = useState("default");
   const [showTax, setShowTax] = useState(false);
   const [activeFilters, setActiveFilters] = useState(new Set());
-
-  const [retryCount, setRetryCount] = useState(0);
 
   // Cache helper functions
   const getCachedData = useCallback(() => {
@@ -163,8 +163,9 @@ const HomePage = () => {
   const displayedHosts = processedHosts;
   const hasMoreData = hosts.length === ITEMS_PER_PAGE; // Assume more data if we got a full page
 
-  // For pagination UI, estimate total pages (this could be improved with backend returning total count)
-  const totalPages = Math.max(1, page + (hasMoreData ? 1 : 0));
+  // For pagination UI, calculate total pages more accurately
+  // Since we don't have total count from backend, estimate based on current data
+  const totalPages = Math.max(1, page + (hasMoreData ? 2 : 0)); // Show more pages if we have data
   const startIdx = (page - 1) * ITEMS_PER_PAGE;
 
   const handlePageChange = (newPage) => {
@@ -172,17 +173,28 @@ const HomePage = () => {
     window.scrollTo({ top: 300, behavior: "smooth" });
   };
 
+  const totalGuestCount =
+    guestCounts.adults + guestCounts.children + guestCounts.infants;
+
+  const guestSummary = totalGuestCount
+    ? `${totalGuestCount} guest${totalGuestCount > 1 ? "s" : ""}`
+    : "Add guests";
+
   const handleSearch = () => {
     const params = new URLSearchParams();
     if (locationQuery) params.append("location", locationQuery);
     if (startDate) params.append("checkin", startDate.toISOString());
     if (endDate) params.append("checkout", endDate.toISOString());
-    if (guestCount > 0) params.append("guests", guestCount);
+    if (totalGuestCount > 0) params.append("guests", totalGuestCount);
     navigate(`/search?${params.toString()}`);
   };
 
   const getPrimaryImage = (host) =>
-    host?.hostPortfolioImages?.[0] || host?.profileImage;
+    host?.profileImage ||
+    (host?.hostPortfolioImages && host.hostPortfolioImages.length > 0
+      ? host.hostPortfolioImages[0]
+      : null) ||
+    null;
 
   const getHostTitle = (host) =>
     host?.hostDisplayName ||
@@ -251,8 +263,67 @@ const HomePage = () => {
       </div>
     ));
 
+  const renderLocationGroups = () => {
+    // Group hosts by country
+    const groupedHosts = displayedHosts.reduce((groups, host) => {
+      const country = host?.country || "Unknown Country";
+      if (!groups[country]) {
+        groups[country] = [];
+      }
+      groups[country].push(host);
+      return groups;
+    }, {});
+
+    // Show exactly 5 properties per country in one full row
+    const PROPERTIES_PER_COUNTRY = 5;
+
+    // Limit to maximum 7 countries per page
+    const countryEntries = Object.entries(groupedHosts).slice(0, 7);
+
+    return countryEntries.map(([country, hosts]) => {
+      // Take exactly 5 properties per country, or pad with duplicates if fewer
+      let selectedHosts = hosts.slice(0, PROPERTIES_PER_COUNTRY);
+
+      // If we have fewer than 5, repeat some to fill the row
+      if (selectedHosts.length < PROPERTIES_PER_COUNTRY) {
+        const needed = PROPERTIES_PER_COUNTRY - selectedHosts.length;
+        const repeats = [];
+        for (let i = 0; i < needed; i++) {
+          repeats.push(selectedHosts[i % selectedHosts.length]);
+        }
+        selectedHosts = [...selectedHosts, ...repeats];
+      }
+
+      return (
+        <div key={country} className="location-group">
+          <h3 className="location-header">Popular homes in {country}</h3>
+          <div className="home-suggest__grid home-suggest__grid--5-cols">
+            {selectedHosts.map((h, index) => (
+              <div key={`${h.userId}-${index}`}>{renderCard(h)}</div>
+            ))}
+          </div>
+        </div>
+      );
+    });
+  };
+
   const renderCard = (host) => {
-    const img = getOptimizedImageUrl(getPrimaryImage(host));
+    const primaryImage = getPrimaryImage(host);
+    const imgUrl = getOptimizedImageUrl(primaryImage);
+
+    // Generate unique fallback image for each host if the original fails
+    const fallbackUrl = `https://picsum.photos/680/510?random=${host.userId?.slice(-8) || Math.random()}`;
+    const img = imgUrl || fallbackUrl;
+
+    // Debug logging
+    console.log("Host data:", host.userId, {
+      profileImage: host?.profileImage,
+      portfolioImages: host?.hostPortfolioImages,
+      primaryImage,
+      imgUrl,
+      finalImg: img,
+    });
+
     const title = getHostTitle(host);
     const location = getLocation(host);
     const price = getNightlyRate(host);
@@ -268,26 +339,16 @@ const HomePage = () => {
       >
         <article className="home-suggest__tile">
           <div className="home-suggest__tile-media">
-            {img ? (
-              <img
-                src={img}
-                alt={title}
-                className="home-suggest__tile-img"
-                loading="lazy"
-                onError={(e) => {
-                  e.target.onerror = null;
-                  e.target.src = "";
-                  e.target.style.display = "none";
-                  e.target.nextSibling.style.display = "flex";
-                }}
-              />
-            ) : null}
-            {!img && (
-              <div
-                className="home-suggest__tile-img home-suggest__tile-img--empty"
-                style={{ display: img ? "none" : "flex" }}
-              />
-            )}
+            <img
+              src={img}
+              alt={title}
+              className="home-suggest__tile-img"
+              loading="lazy"
+              onError={(e) => {
+                e.target.onerror = null;
+                e.target.src = fallbackUrl;
+              }}
+            />
             <button
               className="home-suggest__heart"
               onClick={(e) => e.preventDefault()}
@@ -370,11 +431,11 @@ const HomePage = () => {
 
   return (
     <div className="page-wrapper">
-      <section className="page-content" style={{ paddingTop: "140px" }}>
+      <section className="page-content" style={{ paddingTop: "80px" }}>
         <div className="container">
           <div className="home-search-section">
             <div className="home-search-bar">
-              <div className="search-field">
+              <div className="search-field search-field--where">
                 <label>Where</label>
                 <input
                   type="text"
@@ -393,65 +454,103 @@ const HomePage = () => {
                 </datalist>
               </div>
               <div className="search-divider" />
-              <div className="search-field">
-                <label>Check in</label>
-                <DatePicker
-                  selected={startDate}
-                  onChange={(d) => setStartDate(d)}
-                  placeholderText="Add dates"
-                  className="date-picker-input"
-                  dateFormat="MMM d"
-                />
-              </div>
-              <div className="search-divider" />
-              <div className="search-field">
-                <label>Check out</label>
-                <DatePicker
-                  selected={endDate}
-                  onChange={(d) => setEndDate(d)}
-                  placeholderText="Add dates"
-                  className="date-picker-input"
-                  dateFormat="MMM d"
-                />
+              <div className="search-field search-field--when">
+                <label>When</label>
+                <div className="when-values">
+                  <DatePicker
+                    selected={startDate}
+                    onChange={(d) => setStartDate(d)}
+                    placeholderText="Check in"
+                    className="date-picker-input"
+                    dateFormat="MMM d"
+                    minDate={new Date()}
+                  />
+                  <DatePicker
+                    selected={endDate}
+                    onChange={(d) => setEndDate(d)}
+                    placeholderText="Check out"
+                    className="date-picker-input"
+                    dateFormat="MMM d"
+                    minDate={startDate || new Date()}
+                  />
+                </div>
               </div>
               <div className="search-divider" />
               <div
-                className="search-field"
+                className="search-field search-field--who"
                 onClick={() => setIsGuestOpen(!isGuestOpen)}
               >
                 <label>Who</label>
                 <div
                   style={{
-                    color: guestCount > 0 ? "#222" : "#717171",
+                    color: totalGuestCount > 0 ? "#222" : "#717171",
                     fontSize: "14px",
                   }}
                 >
-                  {guestCount > 0 ? `${guestCount} guests` : "Add guests"}
+                  {guestSummary}
                 </div>
                 {isGuestOpen && (
                   <div
                     className="guest-dropdown"
                     onClick={(e) => e.stopPropagation()}
+                    style={{
+                      position: "absolute",
+                      top: "100%",
+                      right: "0",
+                      background: "white",
+                      padding: "16px",
+                      borderRadius: "16px",
+                      boxShadow: "0 4px 20px rgba(0,0,0,0.15)",
+                      width: "340px",
+                      zIndex: 9999,
+                      marginTop: "12px",
+                      border: "1px solid rgba(0,0,0,0.08)",
+                    }}
                   >
-                    <div className="guest-row">
-                      <div>
-                        <div className="guest-label">Adults</div>
-                        <div className="guest-sub">Ages 13 or above</div>
+                    {[
+                      {
+                        key: "adults",
+                        label: "Adults",
+                        sub: "Ages 13 or above",
+                      },
+                      { key: "children", label: "Children", sub: "Ages 2–12" },
+                      { key: "infants", label: "Infants", sub: "Under 2" },
+                      { key: "pets", label: "Pets", sub: "Bringing a pet?" },
+                    ].map(({ key, label, sub }) => (
+                      <div
+                        className="guest-row"
+                        key={key}
+                        style={{ marginBottom: "10px" }}
+                      >
+                        <div>
+                          <div className="guest-label">{label}</div>
+                          <div className="guest-sub">{sub}</div>
+                        </div>
+                        <div className="guest-counter">
+                          <button
+                            onClick={() =>
+                              setGuestCounts((prev) => ({
+                                ...prev,
+                                [key]: Math.max(0, prev[key] - 1),
+                              }))
+                            }
+                          >
+                            -
+                          </button>
+                          <span>{guestCounts[key]}</span>
+                          <button
+                            onClick={() =>
+                              setGuestCounts((prev) => ({
+                                ...prev,
+                                [key]: prev[key] + 1,
+                              }))
+                            }
+                          >
+                            +
+                          </button>
+                        </div>
                       </div>
-                      <div className="guest-counter">
-                        <button
-                          onClick={() =>
-                            setGuestCount(Math.max(0, guestCount - 1))
-                          }
-                        >
-                          -
-                        </button>
-                        <span>{guestCount}</span>
-                        <button onClick={() => setGuestCount(guestCount + 1)}>
-                          +
-                        </button>
-                      </div>
-                    </div>
+                    ))}
                   </div>
                 )}
               </div>
@@ -639,9 +738,7 @@ const HomePage = () => {
                 </div>
               ) : (
                 <>
-                  <div className="home-suggest__grid">
-                    {displayedHosts.map((h) => renderCard(h))}
-                  </div>
+                  {renderLocationGroups()}
 
                   {/* Pagination */}
                   {totalPages > 1 && (
@@ -694,12 +791,27 @@ const HomePage = () => {
 
       <style>{`
         .date-picker-input { border: none; width: 100%; font-family: inherit; font-size: 14px; color: #222; background: transparent; outline: none; cursor: pointer; }
-        .guest-dropdown { position: absolute; top: 100%; right: 0; background: white; padding: 16px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); width: 300px; z-index: 10; margin-top: 12px; }
-        .guest-row { display: flex; justify-content: space-between; align-items: center; }
+        .search-field--when .when-values { display: flex; gap: 8px; }
+        .search-field--when .react-datepicker-wrapper { flex: 1; }
+        .search-field--when .react-datepicker__input-container input { width: 100%; }
+        .guest-dropdown { 
+          position: absolute; 
+          top: 100%; 
+          right: 0; 
+          background: white; 
+          padding: 16px; 
+          border-radius: 16px; 
+          box-shadow: 0 4px 20px rgba(0,0,0,0.15); 
+          width: 340px; 
+          z-index: 9999; 
+          margin-top: 12px;
+          border: 1px solid rgba(0,0,0,0.08);
+        }
+        .guest-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
         .guest-label { font-weight: 600; color: #222; }
         .guest-sub { font-size: 12px; color: #717171; }
-        .guest-counter { display: flex; align-items: center; gap: 12px; }
-        .guest-counter button { width: 32px; height: 32px; border-radius: 50%; border: 1px solid #ddd; background: white; display: grid; place-items: center; color: #717171; }
+        .guest-counter { display: flex; align-items: center; gap: 10px; }
+        .guest-counter button { width: 30px; height: 30px; border-radius: 50%; border: 1px solid #ddd; background: white; display: grid; place-items: center; color: #717171; }
         .guest-counter button:hover { border-color: #222; color: #222; }
       `}</style>
     </div>
