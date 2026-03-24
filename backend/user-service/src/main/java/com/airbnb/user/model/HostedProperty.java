@@ -46,6 +46,10 @@ public class HostedProperty {
     @Builder.Default
     private boolean payLaterAllowed = false;
 
+    // Booking capacity for this specific property (1-5)
+    @Builder.Default
+    private Integer bookingCapacity = 1;
+
     // Cancellation policy: FLEXIBLE, MODERATE, STRICT
     @Builder.Default
     private String cancellationPolicy = "MODERATE";

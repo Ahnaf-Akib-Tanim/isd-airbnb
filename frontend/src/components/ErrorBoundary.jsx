@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -13,10 +13,10 @@ class ErrorBoundary extends React.Component {
 
   componentDidCatch(error, errorInfo) {
     // Log the error to console and state
-    console.error('ErrorBoundary caught an error:', error, errorInfo);
+    console.error("ErrorBoundary caught an error:", error, errorInfo);
     this.setState({
       error: error,
-      errorInfo: errorInfo
+      errorInfo: errorInfo,
     });
 
     // You can also log the error to an error reporting service here
@@ -35,23 +35,27 @@ class ErrorBoundary extends React.Component {
       }
 
       return (
-        <div style={{
-          padding: '60px 20px',
-          textAlign: 'center',
-          color: '#717171',
-          minHeight: '400px',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'center',
-          alignItems: 'center'
-        }}>
+        <div
+          style={{
+            padding: "60px 20px",
+            textAlign: "center",
+            color: "#717171",
+            minHeight: "400px",
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "center",
+            alignItems: "center",
+          }}
+        >
           <div style={{ fontSize: 48, marginBottom: 16 }}>⚠️</div>
-          <h3 style={{
-            fontSize: 20,
-            fontWeight: 600,
-            color: '#222',
-            marginBottom: 8,
-          }}>
+          <h3
+            style={{
+              fontSize: 20,
+              fontWeight: 600,
+              color: "#222",
+              marginBottom: 8,
+            }}
+          >
             Something went wrong
           </h3>
           <p style={{ marginBottom: 20, maxWidth: 400 }}>
@@ -60,15 +64,15 @@ class ErrorBoundary extends React.Component {
           <button
             onClick={this.handleRetry}
             style={{
-              padding: '12px 28px',
-              background: '#222',
-              color: 'white',
-              border: 'none',
-              borderRadius: '8px',
-              fontSize: '15px',
-              fontWeight: '600',
-              cursor: 'pointer',
-              marginRight: '10px'
+              padding: "12px 28px",
+              background: "#222",
+              color: "white",
+              border: "none",
+              borderRadius: "8px",
+              fontSize: "15px",
+              fontWeight: "600",
+              cursor: "pointer",
+              marginRight: "10px",
             }}
           >
             🔄 Try Again
@@ -76,40 +80,45 @@ class ErrorBoundary extends React.Component {
           <button
             onClick={() => window.location.reload()}
             style={{
-              padding: '12px 28px',
-              background: '#fff',
-              color: '#222',
-              border: '1px solid #ddd',
-              borderRadius: '8px',
-              fontSize: '15px',
-              fontWeight: '600',
-              cursor: 'pointer'
+              padding: "12px 28px",
+              background: "#fff",
+              color: "#222",
+              border: "1px solid #ddd",
+              borderRadius: "8px",
+              fontSize: "15px",
+              fontWeight: "600",
+              cursor: "pointer",
             }}
           >
             Refresh Page
           </button>
-          
-          {process.env.NODE_ENV === 'development' && (
-            <details style={{ 
-              marginTop: '20px', 
-              textAlign: 'left', 
-              maxWidth: '600px',
-              fontSize: '12px',
-              fontFamily: 'monospace'
-            }}>
-              <summary style={{ cursor: 'pointer', marginBottom: '10px' }}>
+
+          {process.env.NODE_ENV === "development" && (
+            <details
+              style={{
+                marginTop: "20px",
+                textAlign: "left",
+                maxWidth: "600px",
+                fontSize: "12px",
+                fontFamily: "monospace",
+              }}
+            >
+              <summary style={{ cursor: "pointer", marginBottom: "10px" }}>
                 Error Details (Development)
               </summary>
-              <pre style={{ 
-                background: '#f5f5f5', 
-                padding: '10px', 
-                borderRadius: '4px',
-                overflow: 'auto',
-                whiteSpace: 'pre-wrap'
-              }}>
+              <pre
+                style={{
+                  background: "#f5f5f5",
+                  padding: "10px",
+                  borderRadius: "4px",
+                  overflow: "auto",
+                  whiteSpace: "pre-wrap",
+                }}
+              >
                 {this.state.error && this.state.error.toString()}
                 <br />
-                {this.state.errorInfo.componentStack}
+                {this.state.errorInfo?.componentStack ||
+                  "No component stack available"}
               </pre>
             </details>
           )}
