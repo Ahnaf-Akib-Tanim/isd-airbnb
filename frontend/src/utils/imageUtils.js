@@ -34,16 +34,71 @@ export const optimizeBase64Image = (base64String, maxWidth = 400, quality = 0.7)
   });
 };
 
+export const FALLBACK_IMAGE_URL = "https://picsum.photos/680/510?random=1";
+
 export const getOptimizedImageUrl = (imageData, size = 'medium') => {
-  if (!imageData) return null;
+  if (!imageData) return FALLBACK_IMAGE_URL;
   
-  // If it's already a URL, return as is
-  if (typeof imageData === 'string' && !imageData.startsWith('data:')) {
+  console.log('getOptimizedImageUrl input:', imageData);
+
+  // For local property images (from our setup script), return as-is
+  if (typeof imageData === 'string' && imageData.includes('/property-images/')) {
+    console.log('Local property image detected:', imageData);
     return imageData;
   }
-  
-  // For base64 images, we'll optimize them on the fly
-  return imageData;
+
+  // For external URLs (like Unsplash), validate and optimize
+  if (typeof imageData === 'string' && imageData.startsWith('http')) {
+    console.log('External URL detected, validating:', imageData);
+    
+    // If it's an Unsplash URL, check if it's complete and optimize
+    if (imageData.includes('unsplash.com')) {
+      // Check if URL has proper photo ID (should have more than just base photo ID)
+      const photoIdMatch = imageData.match(/photo-(\d+)/);
+      if (!photoIdMatch || imageData.length < 60) {
+        console.log('Incomplete Unsplash URL detected, using fallback');
+        return FALLBACK_IMAGE_URL;
+      }
+      
+      // Replace small size parameters with larger ones for better display
+      let optimizedUrl = imageData;
+      optimizedUrl = optimizedUrl.replace(/w=80/g, 'w=800');
+      optimizedUrl = optimizedUrl.replace(/h=80/g, 'h=600');
+      optimizedUrl = optimizedUrl.replace(/q=80/g, 'q=85');
+      
+      // If no size parameters exist, add them
+      if (!optimizedUrl.includes('w=') && !optimizedUrl.includes('h=')) {
+        optimizedUrl += '?w=800&h=600&auto=format&fit=crop&q=85';
+      }
+      
+      console.log('Optimized Unsplash URL:', optimizedUrl);
+      return optimizedUrl;
+    }
+    
+    return imageData;
+  }
+
+  // Normalize Windows local absolute paths to fallback asset
+  if (typeof imageData === 'string' && (imageData.startsWith('C:\\') || imageData.startsWith('\\') || imageData.startsWith('file://'))) {
+    console.log('Local path detected, using fallback');
+    return FALLBACK_IMAGE_URL;
+  }
+
+  // For relative paths (which may not be served) we keep as-is and let onError fallback
+  if (typeof imageData === 'string' && !imageData.startsWith('data:')) {
+    console.log('Relative path detected:', imageData);
+    return imageData;
+  }
+
+  // For base64 images, return as-is for now
+  if (typeof imageData === 'string' && imageData.startsWith('data:image/')) {
+    console.log('Base64 image detected');
+    return imageData;
+  }
+
+  // Anything else: fallback
+  console.log('Using fallback for unknown format');
+  return FALLBACK_IMAGE_URL;
 };
 
 export const preloadImage = (src) => {
