@@ -6,6 +6,7 @@ on:
       - main
       - develop
     paths:
+      - ".github/workflows/**"
       - "backend/**/src/**"
       - "frontend/src/**"
       - "backend/**/pom.xml"
@@ -15,6 +16,7 @@ on:
       - main
       - develop
     paths:
+      - ".github/workflows/**"
       - "backend/**/src/**"
       - "frontend/src/**"
       - "backend/**/pom.xml"
@@ -48,8 +50,10 @@ jobs:
           filters: |
             backend:
               - 'backend/**'
+              - '.github/workflows/**'
             frontend:
               - 'frontend/**'
+              - '.github/workflows/**'
             gateway:
               - 'backend/api-gateway/**'
 
