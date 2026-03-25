@@ -63,6 +63,13 @@ spring:
           filters:
             - StripPrefix=0
 
+        - id: review-service
+          uri: http://review-service:8089
+          predicates:
+            - Path=/api/reviews/**
+          filters:
+            - StripPrefix=0
+
       globalcors:
         corsConfigurations:
           "[/**]":

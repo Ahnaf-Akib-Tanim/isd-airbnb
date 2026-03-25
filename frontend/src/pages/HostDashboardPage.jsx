@@ -1,17 +1,19 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { getBookingsByHost } from "../services/bookingService";
+import { getBookingsByHost, hostConfirmCheckIn, hostConfirmCheckOut, hostCancelBooking } from "../services/bookingService";
 import api from "../utils/axiosConfig";
 import { getNightlyRate, getTaxPercent } from "../utils/hostUtils";
 import { toast } from "react-toastify";
 import Footer from "../components/Footer";
+import ReviewsSection from "../components/ReviewsSection";
 import "./HostDashboardPage.css";
 
 /* ── Status configs ── */
 const STATUS_CONFIG = {
   PENDING:    { label: "Pending",    color: "#856404", bg: "#ffeeba", icon: "⏳" },
   CONFIRMED:  { label: "Confirmed",  color: "#155724", bg: "#d4edda", icon: "✅" },
+  NOT_PAID_YET: { label: "Not Paid Yet", color: "#856404", bg: "#fff3cd", icon: "💳" },
   CANCELLED:  { label: "Cancelled",  color: "#721c24", bg: "#f8d7da", icon: "❌" },
   CHECKED_IN: { label: "Checked In", color: "#004085", bg: "#cce5ff", icon: "🏨" },
   COMPLETED:  { label: "Completed",  color: "#0c5460", bg: "#d1ecf1", icon: "🎉" },
@@ -35,6 +37,7 @@ const HostDashboardPage = () => {
   const [loading, setLoading] = useState(true);
   const [calendarMonth, setCalendarMonth] = useState(new Date());
   const [statusFilter, setStatusFilter] = useState("ALL");
+  const [reviews, setReviews] = useState([]);
 
   useEffect(() => {
     if (!isAuthenticated || user?.role !== "HOST") {
@@ -66,11 +69,61 @@ const HostDashboardPage = () => {
         })
       );
       setGuestDetails(details);
+
+      // Fetch host reviews
+      try {
+        const reviewsRes = await api.get(`/api/reviews/host/${user.userId}`);
+        setReviews(reviewsRes.data || []);
+      } catch (e) {
+        console.error("Failed to fetch reviews", e);
+      }
     } catch (err) {
       console.error("Failed to load host data", err);
       toast.error("Failed to load dashboard data");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCheckIn = async (bookingId, e) => {
+    e.stopPropagation();
+    if (!window.confirm("Confirm guest check-in for this booking?")) return;
+    try {
+      await hostConfirmCheckIn(bookingId, user.userId);
+      toast.success("✅ Check-in confirmed!");
+      loadHostData();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to confirm check-in");
+    }
+  };
+
+  const handleCheckOut = async (bookingId, e) => {
+    e.stopPropagation();
+    if (!window.confirm("Confirm guest check-out for this booking? This will mark the trip as completed and admin will process payout.")) return;
+    try {
+      await hostConfirmCheckOut(bookingId, user.userId);
+      toast.success("✅ Check-out confirmed! Trip completed. Payout will be processed by admin.");
+      loadHostData();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to confirm check-out");
+    }
+  };
+
+  const handleCancelBooking = async (bookingId, e) => {
+    e.stopPropagation();
+    const reason = window.prompt("Please provide a reason for cancellation (required):");
+    if (reason === null) return;
+    if (!reason.trim()) {
+      toast.error("Cancellation reason is required");
+      return;
+    }
+    if (!window.confirm("Are you sure you want to cancel this booking? Guest will receive a full refund.")) return;
+    try {
+      await hostCancelBooking(bookingId, reason.trim());
+      toast.success("Booking cancelled. Admin will process the refund.");
+      loadHostData();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to cancel booking");
     }
   };
 
@@ -81,9 +134,8 @@ const HostDashboardPage = () => {
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
     const daysInMonth = lastDay.getDate();
-    const startDow = firstDay.getDay(); // 0=Sun
+    const startDow = firstDay.getDay();
 
-    // Build date-to-bookings map
     const dateMap = {};
     bookings.forEach((b) => {
       if (b.status === "CANCELLED" || b.status === "REFUNDED") return;
@@ -114,7 +166,6 @@ const HostDashboardPage = () => {
     const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
     const cells = [];
 
-    // Empty cells before first day
     for (let i = 0; i < startDow; i++) {
       cells.push(<div key={`empty-${i}`} className="hd-cal__cell hd-cal__cell--empty" />);
     }
@@ -126,10 +177,7 @@ const HostDashboardPage = () => {
       const isToday = day === today.getDate() && calendarMonth.getMonth() === today.getMonth() && calendarMonth.getFullYear() === today.getFullYear();
 
       cells.push(
-        <div
-          key={day}
-          className={`hd-cal__cell ${isBooked ? "hd-cal__cell--booked" : "hd-cal__cell--free"} ${isToday ? "hd-cal__cell--today" : ""}`}
-        >
+        <div key={day} className={`hd-cal__cell ${isBooked ? "hd-cal__cell--booked" : "hd-cal__cell--free"} ${isToday ? "hd-cal__cell--today" : ""}`}>
           <span className="hd-cal__day-num">{day}</span>
           {isBooked ? (
             <div className="hd-cal__booking-info">
@@ -170,7 +218,6 @@ const HostDashboardPage = () => {
           {cells}
         </div>
 
-        {/* List of bookings for this month */}
         <div className="hd-cal__month-bookings">
           <h4>Bookings this month</h4>
           {bookings.filter((b) => {
@@ -220,74 +267,169 @@ const HostDashboardPage = () => {
 
   /* ─────────── HOSTED HOMES TAB ─────────── */
   const renderHostedHomes = () => {
-    // Current logged-in user IS a host, so show their property info
-    // A host's properties are derived from the user data itself
-    // In a multi-property system, we'd have a listings collection,
-    // but in this schema each host IS a property listing
     const hostData = user;
     const rate = getNightlyRate(hostData);
     const taxPct = getTaxPercent(hostData);
+    const images = hostData?.hostPortfolioImages || [];
+    const totalBookings = bookings.length;
+    const completedBookings = bookings.filter(b => b.status === "COMPLETED").length;
+    const totalRevenue = bookings.filter(b => b.paymentStatus === "COMPLETED" || b.status === "COMPLETED")
+      .reduce((sum, b) => sum + (Number(b.totalPrice) || 0), 0);
+    const totalPayouts = bookings.filter(b => b.payoutIssued)
+      .reduce((sum, b) => sum + (Number(b.payoutAmount) || 0), 0);
 
     return (
       <div className="hd-homes">
         <h3 className="hd-homes__title">Your Hosted Properties</h3>
         <p className="hd-homes__subtitle">Manage and view your hosted homes</p>
 
-        <div className="hd-homes__grid">
-          {/* Primary listing card */}
-          <div className="hd-home-card">
-            <div className="hd-home-card__img-wrap">
-              {hostData?.hostPortfolioImages?.[0] ? (
-                <img src={hostData.hostPortfolioImages[0]} alt={hostData.hostDisplayName} className="hd-home-card__img" />
+        {/* Property Listing Card */}
+        <div className="hd-home-listing">
+          {/* Image gallery row */}
+          <div className="hd-home-listing__gallery">
+            <div className="hd-home-listing__main-img">
+              {images[0] ? (
+                <img src={images[0]} alt={hostData?.hostDisplayName} />
               ) : (
                 <div className="hd-home-card__img-placeholder">🏡</div>
               )}
               <span className="hd-home-card__type-badge">{hostData?.propertyTypesOffered?.[0] || "Property"}</span>
+              {hostData?.superhost && <span className="hd-home-listing__superhost-badge">⭐ Superhost</span>}
             </div>
-            <div className="hd-home-card__body">
-              <h4 className="hd-home-card__name">{hostData?.hostDisplayName || `${hostData?.firstName}'s Place`}</h4>
-              <p className="hd-home-card__location">
-                📍 {[hostData?.area, hostData?.district, hostData?.city, hostData?.country].filter(Boolean).join(", ")}
-              </p>
-              <div className="hd-home-card__stats">
-                <div className="hd-home-stat">
-                  <span className="hd-home-stat__label">Nightly Rate</span>
-                  <span className="hd-home-stat__value">${rate}</span>
+            <div className="hd-home-listing__sub-imgs">
+              {images.slice(1, 5).map((img, i) => (
+                <div key={i} className="hd-home-listing__sub-img">
+                  <img src={img} alt={`Gallery ${i + 1}`} />
                 </div>
-                <div className="hd-home-stat">
-                  <span className="hd-home-stat__label">Tax</span>
-                  <span className="hd-home-stat__value">{taxPct}%</span>
-                </div>
-                <div className="hd-home-stat">
-                  <span className="hd-home-stat__label">Capacity</span>
-                  <span className="hd-home-stat__value">{hostData?.guestCapacity || 2} guests</span>
-                </div>
-                <div className="hd-home-stat">
-                  <span className="hd-home-stat__label">Beds</span>
-                  <span className="hd-home-stat__value">{hostData?.bedCount || 1}</span>
-                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Property Info */}
+          <div className="hd-home-listing__body">
+            <div className="hd-home-listing__header">
+              <div>
+                <h2 className="hd-home-listing__name">{hostData?.hostDisplayName || `${hostData?.firstName}'s Place`}</h2>
+                <p className="hd-home-listing__location">
+                  📍 {[hostData?.area, hostData?.district, hostData?.city, hostData?.country].filter(Boolean).join(", ")}
+                </p>
               </div>
-              <div className="hd-home-card__rating">
+              <div className="hd-home-listing__rating-box">
                 {hostData?.averageRating ? (
-                  <>★ {hostData.averageRating.toFixed(2)} ({hostData.reviewCount || 0} reviews)</>
+                  <>
+                    <span className="hd-home-listing__rating-star">★</span>
+                    <span className="hd-home-listing__rating-num">{hostData.averageRating.toFixed(2)}</span>
+                    <span className="hd-home-listing__rating-count">({hostData.reviewCount || reviews.length} reviews)</span>
+                  </>
                 ) : (
-                  "No reviews yet"
+                  <span className="hd-home-listing__no-rating">No reviews yet</span>
                 )}
               </div>
-              <div className="hd-home-card__amenities">
-                {hostData?.offeringHighlights?.map((h, i) => (
-                  <span key={i} className="hd-amenity-tag">{h}</span>
-                ))}
+            </div>
+
+            {/* Property Stats Grid */}
+            <div className="hd-home-listing__stats">
+              <div className="hd-listing-stat">
+                <span className="hd-listing-stat__icon">💰</span>
+                <div>
+                  <span className="hd-listing-stat__value">${rate}</span>
+                  <span className="hd-listing-stat__label">/ night</span>
+                </div>
               </div>
-              {hostData?.payLaterAllowed && (
-                <span className="hd-home-card__pay-later-badge">💳 Pay Later Available</span>
-              )}
-              <div className="hd-home-card__gallery">
-                {hostData?.hostPortfolioImages?.slice(1, 5).map((img, i) => (
-                  <img key={i} src={img} alt={`Gallery ${i + 1}`} className="hd-home-card__gallery-img" />
-                ))}
+              <div className="hd-listing-stat">
+                <span className="hd-listing-stat__icon">👥</span>
+                <div>
+                  <span className="hd-listing-stat__value">{hostData?.guestCapacity || 2}</span>
+                  <span className="hd-listing-stat__label">guests</span>
+                </div>
+              </div>
+              <div className="hd-listing-stat">
+                <span className="hd-listing-stat__icon">🛏️</span>
+                <div>
+                  <span className="hd-listing-stat__value">{hostData?.bedCount || 1}</span>
+                  <span className="hd-listing-stat__label">beds</span>
+                </div>
+              </div>
+              <div className="hd-listing-stat">
+                <span className="hd-listing-stat__icon">📊</span>
+                <div>
+                  <span className="hd-listing-stat__value">{taxPct}%</span>
+                  <span className="hd-listing-stat__label">tax</span>
+                </div>
+              </div>
+              <div className="hd-listing-stat">
+                <span className="hd-listing-stat__icon">📋</span>
+                <div>
+                  <span className="hd-listing-stat__value">{totalBookings}</span>
+                  <span className="hd-listing-stat__label">bookings</span>
+                </div>
+              </div>
+              <div className="hd-listing-stat">
+                <span className="hd-listing-stat__icon">✅</span>
+                <div>
+                  <span className="hd-listing-stat__value">{completedBookings}</span>
+                  <span className="hd-listing-stat__label">completed</span>
+                </div>
               </div>
             </div>
+
+            {/* Earnings summary */}
+            <div className="hd-home-listing__earnings">
+              <div className="hd-earnings-card">
+                <span className="hd-earnings-card__icon">💵</span>
+                <div>
+                  <span className="hd-earnings-card__label">Total Revenue</span>
+                  <span className="hd-earnings-card__value">${totalRevenue.toFixed(0)}</span>
+                </div>
+              </div>
+              <div className="hd-earnings-card hd-earnings-card--green">
+                <span className="hd-earnings-card__icon">🏦</span>
+                <div>
+                  <span className="hd-earnings-card__label">Total Payouts</span>
+                  <span className="hd-earnings-card__value">${totalPayouts.toFixed(0)}</span>
+                </div>
+              </div>
+              <div className="hd-earnings-card hd-earnings-card--blue">
+                <span className="hd-earnings-card__icon">📈</span>
+                <div>
+                  <span className="hd-earnings-card__label">Payout Rate</span>
+                  <span className="hd-earnings-card__value">{hostData?.payoutPercentage || 80}%</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Amenities */}
+            {hostData?.offeringHighlights && hostData.offeringHighlights.length > 0 && (
+              <div className="hd-home-listing__amenities">
+                <h4>What your place offers</h4>
+                <div className="hd-amenities-grid">
+                  {hostData.offeringHighlights.map((h, i) => (
+                    <span key={i} className="hd-amenity-tag">✓ {h}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Policies */}
+            <div className="hd-home-listing__policies">
+              {hostData?.payLaterAllowed && (
+                <span className="hd-policy-badge hd-policy-badge--blue">💳 Pay Later Available</span>
+              )}
+              <span className="hd-policy-badge">
+                📋 Cancellation: {hostData?.cancellationPolicy || "MODERATE"}
+              </span>
+              {hostData?.superhost && (
+                <span className="hd-policy-badge hd-policy-badge--gold">⭐ Superhost</span>
+              )}
+            </div>
+
+            {/* About */}
+            {hostData?.hostAbout && (
+              <div className="hd-home-listing__about">
+                <h4>About this place</h4>
+                <p>{hostData.hostAbout}</p>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -332,10 +474,19 @@ const HostDashboardPage = () => {
             const status = STATUS_CONFIG[b.status] || STATUS_CONFIG.PENDING;
             const payment = PAYMENT_CONFIG[b.paymentStatus] || PAYMENT_CONFIG.PENDING;
             const nights = Math.max(1, (new Date(b.checkOutDate) - new Date(b.checkInDate)) / (1000 * 60 * 60 * 24));
+            
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const checkInDate = new Date(b.checkInDate);
+            checkInDate.setHours(0, 0, 0, 0);
+            
+            const canCheckIn = b.status === "CONFIRMED" && today >= checkInDate;
+            const canCheckOut = b.status === "CHECKED_IN";
+            const canCancel = b.status === "PENDING" || b.status === "CONFIRMED" || b.status === "NOT_PAID_YET";
 
             return (
-              <div key={b.id} className="hd-booking-card" onClick={() => navigate(`/booking/${b.id}`)}>
-                <div className="hd-booking-card__top">
+              <div key={b.id} className="hd-booking-card">
+                <div className="hd-booking-card__top" onClick={() => navigate(`/booking/${b.id}`)}>
                   <div className="hd-booking-card__guest">
                     <div className="hd-booking-card__avatar">
                       {guest.profileImage ? (
@@ -359,7 +510,8 @@ const HostDashboardPage = () => {
                   </div>
                 </div>
 
-                <div className="hd-booking-card__details">
+                {/* Rich detail grid */}
+                <div className="hd-booking-card__details" onClick={() => navigate(`/booking/${b.id}`)}>
                   <div className="hd-booking-card__detail">
                     <span className="hd-detail-label">Check-in</span>
                     <span className="hd-detail-value">{new Date(b.checkInDate).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}</span>
@@ -376,10 +528,63 @@ const HostDashboardPage = () => {
                     <span className="hd-detail-label">Total</span>
                     <span className="hd-detail-value hd-detail-value--price">${b.totalPrice}</span>
                   </div>
+                  {b.propertyName && (
+                    <div className="hd-booking-card__detail">
+                      <span className="hd-detail-label">Property</span>
+                      <span className="hd-detail-value">{b.propertyName}</span>
+                    </div>
+                  )}
+                  {b.cancellationPolicy && (
+                    <div className="hd-booking-card__detail">
+                      <span className="hd-detail-label">Cancel Policy</span>
+                      <span className="hd-detail-value">{b.cancellationPolicy}</span>
+                    </div>
+                  )}
                 </div>
 
-                <div className="hd-booking-card__footer">
+                {/* Cancellation info */}
+                {b.cancellationReason && (
+                  <div className="hd-booking-card__cancel-info">
+                    <strong>❌ Cancellation:</strong> {b.cancellationReason}
+                    {b.cancelledBy && <span className="hd-cancelled-by"> (by {b.cancelledBy})</span>}
+                    {b.refundAmount > 0 && <span className="hd-refund-amount"> | Refund: ${b.refundAmount}</span>}
+                  </div>
+                )}
+
+                {/* Host Action Buttons */}
+                <div className="hd-booking-card__actions">
+                  {canCheckIn && (
+                    <button className="hd-action-btn hd-action-btn--checkin" onClick={(e) => handleCheckIn(b.id, e)} title="Confirm guest check-in">
+                      🏠 Confirm Check-In
+                    </button>
+                  )}
+                  {canCheckOut && (
+                    <button className="hd-action-btn hd-action-btn--checkout" onClick={(e) => handleCheckOut(b.id, e)} title="Confirm guest check-out">
+                      👋 Confirm Check-Out
+                    </button>
+                  )}
+                  {canCancel && (
+                    <button className="hd-action-btn hd-action-btn--cancel" onClick={(e) => handleCancelBooking(b.id, e)} title="Cancel this booking">
+                      ❌ Cancel Booking
+                    </button>
+                  )}
+                  {b.status === "COMPLETED" && b.payoutIssued && (
+                    <div className="hd-payout-badge">
+                      💰 Payout: ${b.payoutAmount} ({b.payoutPercentage || 80}%)
+                    </div>
+                  )}
+                  {b.status === "COMPLETED" && !b.payoutIssued && (
+                    <div className="hd-payout-badge hd-payout-badge--pending">
+                      ⏳ Awaiting Payout from Admin
+                    </div>
+                  )}
+                </div>
+
+                <div className="hd-booking-card__footer" onClick={() => navigate(`/booking/${b.id}`)}>
                   <span className="hd-booking-card__id">Booking #{b.id?.substring(0, 8)}</span>
+                  <span className="hd-booking-card__date-created">
+                    Created: {new Date(b.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                  </span>
                   <span className="hd-booking-card__arrow">→</span>
                 </div>
               </div>
@@ -389,6 +594,32 @@ const HostDashboardPage = () => {
       )}
     </div>
   );
+
+  /* ─────────── REVIEWS TAB ─────────── */
+  const renderReviews = () => {
+    const hostData = user;
+    return (
+      <div className="hd-reviews">
+        <h3 className="hd-homes__title">Guest Reviews</h3>
+        <p className="hd-homes__subtitle">See what guests are saying about your properties</p>
+        <div style={{ background: "white", padding: "24px", borderRadius: "16px", boxShadow: "0 2px 16px rgba(0,0,0,.06)" }}>
+          <ReviewsSection 
+            reviews={reviews} 
+            averageRating={hostData?.averageRating || 0}
+            reviewCount={hostData?.reviewCount || reviews.length}
+            categoryScores={{
+              cleanliness: hostData?.cleanlinessRating || 4.8,
+              accuracy: hostData?.accuracyRating || 4.7,
+              checkIn: hostData?.checkInRating || 4.9,
+              communication: hostData?.communicationRating || 4.8,
+              location: hostData?.locationRating || 4.6,
+              value: hostData?.valueRating || 4.7
+            }}
+          />
+        </div>
+      </div>
+    );
+  };
 
   if (!user || user.role !== "HOST") {
     return (
@@ -421,8 +652,8 @@ const HostDashboardPage = () => {
               <span className="hd-stat-card__label">Confirmed</span>
             </div>
             <div className="hd-stat-card">
-              <span className="hd-stat-card__number">{bookings.filter((b) => b.status === "PENDING").length}</span>
-              <span className="hd-stat-card__label">Pending</span>
+              <span className="hd-stat-card__number">{bookings.filter((b) => b.status === "CHECKED_IN").length}</span>
+              <span className="hd-stat-card__label">Checked In</span>
             </div>
             <div className="hd-stat-card">
               <span className="hd-stat-card__number">${bookings.reduce((sum, b) => sum + (Number(b.totalPrice) || 0), 0).toFixed(0)}</span>
@@ -442,6 +673,9 @@ const HostDashboardPage = () => {
           <button className={`hd-tab ${activeTab === "bookings" ? "hd-tab--active" : ""}`} onClick={() => setActiveTab("bookings")}>
             📋 Bookings
           </button>
+          <button className={`hd-tab ${activeTab === "reviews" ? "hd-tab--active" : ""}`} onClick={() => setActiveTab("reviews")}>
+            ⭐ Reviews
+          </button>
         </div>
 
         {/* Tab content */}
@@ -456,6 +690,7 @@ const HostDashboardPage = () => {
               {activeTab === "calendar" && renderCalendar()}
               {activeTab === "homes" && renderHostedHomes()}
               {activeTab === "bookings" && renderBookings()}
+              {activeTab === "reviews" && renderReviews()}
             </>
           )}
         </div>
