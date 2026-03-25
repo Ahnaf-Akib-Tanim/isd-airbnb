@@ -104,7 +104,7 @@ const ReservationPage = () => {
         cancellationPolicy: host?.cancellationPolicy || 'MODERATE',
         payoutPercentage: host?.payoutPercentage || 80.0,
         status: "PENDING",
-        paymentStatus: payLater ? "PAY_LATER" : "PENDING",
+        paymentStatus: payLater ? "PAY_LATER" : "COMPLETED",
       };
 
       await createBooking(bookingData);
@@ -224,41 +224,48 @@ const ReservationPage = () => {
             <section className="res-section">
               <h2>Payment</h2>
 
-              {host.payLaterAllowed && (
-                <div className="res-pay-option">
-                  <label className="res-radio-label">
-                    <input
-                      type="radio"
-                      name="paymentType"
-                      checked={!payLater}
-                      onChange={() => setPayLater(false)}
-                    />
-                    <div>
-                      <strong>Pay now</strong>
-                      <p>Pay the total amount now (${totalPrice.toFixed(0)})</p>
-                    </div>
-                  </label>
-                  <label className="res-radio-label">
-                    <input
-                      type="radio"
-                      name="paymentType"
-                      checked={payLater}
-                      onChange={() => setPayLater(true)}
-                    />
-                    <div>
-                      <strong>Pay later</strong>
-                      <p>
-                        No payment needed now. You can pay before check-in.
-                      </p>
-                    </div>
-                  </label>
+              {host.payLaterAllowed ? (
+                <>
+                  <div className="res-pay-info-badge">
+                    ✨ This host offers flexible payment options
+                  </div>
+                  <div className="res-pay-option">
+                    <label className="res-radio-label">
+                      <input
+                        type="radio"
+                        name="paymentType"
+                        checked={!payLater}
+                        onChange={() => setPayLater(false)}
+                      />
+                      <div>
+                        <strong>💳 Pay now</strong>
+                        <p>Pay the total amount now (${totalPrice.toFixed(0)})</p>
+                      </div>
+                    </label>
+                    <label className="res-radio-label">
+                      <input
+                        type="radio"
+                        name="paymentType"
+                        checked={payLater}
+                        onChange={() => setPayLater(true)}
+                      />
+                      <div>
+                        <strong>⏰ Pay later</strong>
+                        <p>
+                          Reserve now, pay after admin confirms your booking. No card required now!
+                        </p>
+                      </div>
+                    </label>
+                  </div>
+                </>
+              ) : (
+                <div className="res-pay-note-box">
+                  <span className="res-pay-note-icon">💳</span>
+                  <div>
+                    <strong>Immediate payment required</strong>
+                    <p>This host requires full payment at the time of booking.</p>
+                  </div>
                 </div>
-              )}
-
-              {!host.payLaterAllowed && (
-                <p className="res-pay-note">
-                  This host requires full payment at the time of booking.
-                </p>
               )}
 
               {!payLater && (

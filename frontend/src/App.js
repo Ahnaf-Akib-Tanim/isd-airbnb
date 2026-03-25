@@ -28,12 +28,13 @@ import ReservationPage from "./pages/ReservationPage";
 import SearchPage from "./pages/SearchPage";
 import VerifyEmailPage from "./pages/VerifyEmailPage";
 
+import { WebSocketProvider } from "./context/WebSocketContext";
+
 function App() {
   return (
     <ErrorBoundary>
       <AuthProvider>
-        {/* Temporarily disable WebSocket to fix startup issues */}
-        {/* <WebSocketProvider> */}
+        <WebSocketProvider>
           <Router
             future={{
               v7_startTransition: true,
@@ -173,7 +174,7 @@ function App() {
               theme="light"
             />
           </Router>
-        {/* </WebSocketProvider> */}
+        </WebSocketProvider>
       </AuthProvider>
     </ErrorBoundary>
   );
