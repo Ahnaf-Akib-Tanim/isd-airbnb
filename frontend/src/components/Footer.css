@@ -7,8 +7,7 @@
 }
 
 .footer__container {
-  max-width: 1500px;
-  padding: 0 40px;
+  max-width: 1300px;
   margin: 0 auto;
   padding: 0 40px; /* Matching homepage container padding */
 }

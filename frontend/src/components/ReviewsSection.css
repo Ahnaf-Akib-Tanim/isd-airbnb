@@ -162,6 +162,7 @@
   align-items: flex-start;
   margin-bottom: 16px;
   gap: 16px;
+  flex-wrap: wrap;
 }
 
 .reviewer-info {
@@ -211,11 +212,11 @@
 .review-rating {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
 }
 
 .star {
-  font-size: 16px;
+  font-size: 14px;
 }
 
 .star-full {

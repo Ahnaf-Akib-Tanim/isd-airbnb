@@ -160,9 +160,9 @@ select {
 
 /* ─── Utility Classes ─── */
 .container {
-  max-width: 1500px; /* Standardized wide canvas */
+  max-width: 1300px; /* Highly spacious wide canvas void */
   margin: 0 auto;
-  padding: 0 40px; /* Standardized uniform edge padding */
+  padding: 0 40px; /* Streamlined edge padding */
 }
 
 .container-sm {

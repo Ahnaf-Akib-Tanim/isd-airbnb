@@ -27,11 +27,13 @@
 }
 
 @keyframes ppSpin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .pp-container {
-  max-width: 1500px;
+  max-width: 1300px;
   padding: 0 40px;
   margin: 0 auto;
   padding: 24px 20px 60px;
@@ -75,7 +77,7 @@
   border: 1px solid #ebebeb;
   border-radius: 16px;
   padding: 32px;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
 }
 
 .pp-title {
@@ -130,7 +132,7 @@
 
 .pp-input:focus {
   border-color: #222;
-  box-shadow: 0 0 0 2px rgba(34,34,34,0.12);
+  box-shadow: 0 0 0 2px rgba(34, 34, 34, 0.12);
 }
 
 .pp-field-row {
@@ -172,7 +174,7 @@
 .pp-btn-spinner {
   width: 18px;
   height: 18px;
-  border: 2px solid rgba(255,255,255,0.4);
+  border: 2px solid rgba(255, 255, 255, 0.4);
   border-top-color: white;
   border-radius: 50%;
   animation: ppSpin 0.7s linear infinite;
@@ -198,7 +200,7 @@
   border: 1px solid #ebebeb;
   border-radius: 16px;
   padding: 24px;
-  box-shadow: 0 1px 6px rgba(0,0,0,0.08);
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.08);
 }
 
 .pp-summary-title {
