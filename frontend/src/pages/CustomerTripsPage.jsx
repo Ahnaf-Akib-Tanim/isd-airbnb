@@ -8,38 +8,13 @@ import api from "../utils/axiosConfig";
 import "./CustomerTripsPage.css";
 
 const STATUS_CONFIG = {
-  PENDING: { label: "Pending", color: "#b45309", bg: "#fef3c7", icon: "⏳" },
-  CONFIRMED: {
-    label: "Confirmed",
-    color: "#065f46",
-    bg: "#d1fae5",
-    icon: "✅",
-  },
-  NOT_PAID_YET: {
-    label: "Not Paid Yet",
-    color: "#f59e0b",
-    bg: "#fef3c7",
-    icon: "💳",
-  },
-  CANCELLED: {
-    label: "Cancelled",
-    color: "#991b1b",
-    bg: "#fee2e2",
-    icon: "❌",
-  },
-  CHECKED_IN: {
-    label: "Checked In",
-    color: "#1e40af",
-    bg: "#dbeafe",
-    icon: "🏨",
-  },
-  COMPLETED: {
-    label: "Completed",
-    color: "#065f46",
-    bg: "#d1fae5",
-    icon: "🎉",
-  },
-  REFUNDED: { label: "Refunded", color: "#4b5563", bg: "#e5e7eb", icon: "💸" },
+  PENDING: { label: "Pending", color: "#b45309", bg: "#fef3c7", icon: "⏳", step: 1 },
+  CONFIRMED: { label: "Confirmed", color: "#065f46", bg: "#d1fae5", icon: "✅", step: 2 },
+  NOT_PAID_YET: { label: "Awaiting Payment", color: "#f59e0b", bg: "#fef3c7", icon: "💳", step: 1 },
+  CHECKED_IN: { label: "Checked In", color: "#1e40af", bg: "#dbeafe", icon: "🏨", step: 3 },
+  COMPLETED: { label: "Completed", color: "#065f46", bg: "#d1fae5", icon: "🎉", step: 4 },
+  CANCELLED: { label: "Cancelled", color: "#991b1b", bg: "#fee2e2", icon: "❌", step: -1 },
+  REFUNDED: { label: "Refunded", color: "#4b5563", bg: "#e5e7eb", icon: "💸", step: -1 },
 };
 
 const PAYMENT_CONFIG = {
@@ -68,10 +43,15 @@ const CANCELLATION_POLICIES = {
   },
 };
 
+const STATUS_STEPS = [
+  { key: "booked", label: "Booked", icon: "📝" },
+  { key: "confirmed", label: "Confirmed", icon: "✅" },
+  { key: "checkedIn", label: "Checked In", icon: "🏨" },
+  { key: "completed", label: "Completed", icon: "🎉" },
+];
+
 const CustomerTripsPage = () => {
   const { user } = useAuth();
-  // Temporarily disable WebSocket to fix startup issues
-  // const { subscribeToBookingUpdates, subscribeToPaymentUpdates } = useWebSocket();
   const navigate = useNavigate();
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -112,18 +92,13 @@ const CustomerTripsPage = () => {
   useEffect(() => {
     if (user?.userId) {
       fetchTrips();
-      // Temporarily disabled WebSocket
-      // subscribeToBookingUpdates(user.userId, 'GUEST');
-      // subscribeToPaymentUpdates(user.userId);
     }
   }, [user?.userId, fetchTrips]);
 
   const today = new Date().toISOString().split("T")[0];
 
   const categorized = useMemo(() => {
-    const current = [],
-      past = [],
-      cancelled = [];
+    const current = [], past = [], cancelled = [];
     bookings.forEach((b) => {
       if (["CANCELLED", "REFUNDED"].includes(b.status)) {
         cancelled.push(b);
@@ -160,9 +135,7 @@ const CustomerTripsPage = () => {
     setCancelling(true);
     try {
       await cancelBooking(cancelModal.id, cancelReason.trim());
-      toast.success(
-        "Cancellation request submitted. Admin will process your refund.",
-      );
+      toast.success("Cancellation request submitted. Admin will process your refund.");
       setCancelModal(null);
       setCancelReason("");
       fetchTrips();
@@ -174,101 +147,73 @@ const CustomerTripsPage = () => {
   };
 
   const handlePayNow = (bookingId) => {
-    navigate(`/booking/${bookingId}?action=pay`);
+    navigate(`/payment/${bookingId}`);
   };
 
   const getHost = (id) => hostCache[id] || {};
   const getNights = (b) =>
     b.checkInDate && b.checkOutDate
-      ? Math.max(
-          1,
-          Math.ceil(
-            (new Date(b.checkOutDate) - new Date(b.checkInDate)) /
-              (1000 * 60 * 60 * 24),
-          ),
-        )
+      ? Math.max(1, Math.ceil((new Date(b.checkOutDate) - new Date(b.checkInDate)) / (1000 * 60 * 60 * 24)))
       : 0;
 
   const tabs = [
-    {
-      key: "current",
-      label: "Current Trips",
-      count: categorized.current.length,
-      icon: "🏠",
-    },
-    {
-      key: "past",
-      label: "Past Trips",
-      count: categorized.past.length,
-      icon: "📋",
-    },
-    {
-      key: "cancelled",
-      label: "Cancelled",
-      count: categorized.cancelled.length,
-      icon: "❌",
-    },
+    { key: "current", label: "Current Trips", count: categorized.current.length, icon: "🏠" },
+    { key: "past", label: "Past Trips", count: categorized.past.length, icon: "📋" },
+    { key: "cancelled", label: "Cancelled", count: categorized.cancelled.length, icon: "❌" },
   ];
 
-  const renderTimeline = (booking) => {
-    const events = [];
-    if (booking.createdAt)
-      events.push({
-        date: booking.createdAt,
-        label: "Booking created",
-        icon: "📝",
-      });
-    if (
-      booking.status === "CONFIRMED" ||
-      booking.status === "CHECKED_IN" ||
-      booking.status === "COMPLETED"
-    )
-      events.push({
-        date: booking.updatedAt,
-        label: "Confirmed by admin",
-        icon: "✅",
-      });
-    if (booking.status === "CHECKED_IN" || booking.status === "COMPLETED")
-      events.push({
-        date: booking.checkInDate,
-        label: "Checked in",
-        icon: "🏨",
-      });
-    if (booking.status === "COMPLETED")
-      events.push({
-        date: booking.checkOutDate,
-        label: "Completed",
-        icon: "🎉",
-      });
-    if (booking.status === "CANCELLED")
-      events.push({ date: booking.updatedAt, label: "Cancelled", icon: "❌" });
-    if (booking.status === "REFUNDED")
-      events.push({ date: booking.updatedAt, label: "Refunded", icon: "💸" });
-    return events;
+  /* ── Status progress bar ── */
+  const getActiveStep = (booking) => {
+    const s = booking.status;
+    if (s === "PENDING" || s === "NOT_PAID_YET") return 0;
+    if (s === "CONFIRMED") return 1;
+    if (s === "CHECKED_IN") return 2;
+    if (s === "COMPLETED") return 3;
+    return -1; // cancelled/refunded
+  };
+
+  const renderStatusBar = (booking) => {
+    const active = getActiveStep(booking);
+    if (active === -1) return null; // don't show for cancelled
+
+    return (
+      <div className="ct-status-bar">
+        {STATUS_STEPS.map((step, i) => {
+          const done = i <= active;
+          const isCurrent = i === active;
+          return (
+            <div key={step.key} className="ct-status-bar__step-wrap">
+              <div className={`ct-status-bar__step ${done ? "ct-status-bar__step--done" : ""} ${isCurrent ? "ct-status-bar__step--current" : ""}`}>
+                <div className="ct-status-bar__circle">
+                  {done ? <span className="ct-status-bar__check">✓</span> : <span className="ct-status-bar__num">{i + 1}</span>}
+                </div>
+                <span className="ct-status-bar__label">{step.label}</span>
+              </div>
+              {i < STATUS_STEPS.length - 1 && (
+                <div className={`ct-status-bar__connector ${i < active ? "ct-status-bar__connector--done" : ""}`} />
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
   };
 
   const renderBookingCard = (booking) => {
     const host = getHost(booking.hostId);
     const status = STATUS_CONFIG[booking.status] || STATUS_CONFIG.PENDING;
-    const payment =
-      PAYMENT_CONFIG[booking.paymentStatus] || PAYMENT_CONFIG.PENDING;
+    const payment = PAYMENT_CONFIG[booking.paymentStatus] || PAYMENT_CONFIG.PENDING;
     const nights = getNights(booking);
-    const timeline = renderTimeline(booking);
-    const canCancel = ["PENDING", "CONFIRMED"].includes(booking.status);
+    const canCancel = ["PENDING", "CONFIRMED", "NOT_PAID_YET"].includes(booking.status);
     const canPay =
-      booking.paymentStatus === "PAY_LATER" &&
-      ["CONFIRMED", "PENDING"].includes(booking.status);
-    const refundPct = canCancel ? getRefundPercent(booking) : 0;
-    // eslint-disable-next-line no-unused-vars
-    const unusedRefundPct = refundPct; // This is calculated for future use
+      (booking.paymentStatus === "PAY_LATER" || booking.paymentStatus === "PENDING") &&
+      ["NOT_PAID_YET", "CONFIRMED"].includes(booking.status);
+    const daysUntil = getDaysUntilCheckIn(booking.checkInDate);
 
     return (
-      <div
-        className="ct-card"
-        key={booking.id}
-        onClick={() => navigate(`/booking/${booking.id}`)}
-      >
-        <div className="ct-card-header">
+      <div className="ct-card" key={booking.id}>
+        {/* Header with image and info */}
+        <div className="ct-card-header" onClick={() => navigate(`/booking/${booking.id}`)}>
           <div className="ct-card-image">
             {host.hostPortfolioImages?.[0] ? (
               <img src={host.hostPortfolioImages[0]} alt="property" />
@@ -277,75 +222,84 @@ const CustomerTripsPage = () => {
             )}
           </div>
           <div className="ct-card-info">
-            <h3>
-              {host.hostDisplayName || `${host.firstName || "Host"}'s Place`}
-            </h3>
+            <h3>{host.hostDisplayName || `${host.firstName || "Host"}'s Place`}</h3>
             <p className="ct-card-location">
               📍 {host.area || host.city || host.district || "N/A"},{" "}
               {host.country || ""}
             </p>
-            <div className="ct-card-dates">
-              <span>
+            <div className="ct-card-meta">
+              <span className="ct-meta-item">
+                <span className="ct-meta-icon">📅</span>
                 {booking.checkInDate
-                  ? new Date(booking.checkInDate).toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                      year: "numeric",
-                    })
+                  ? new Date(booking.checkInDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })
                   : "—"}
-              </span>
-              <span className="ct-arrow">→</span>
-              <span>
+                <span className="ct-arrow">→</span>
                 {booking.checkOutDate
-                  ? new Date(booking.checkOutDate).toLocaleDateString("en-US", {
-                      month: "short",
-                      day: "numeric",
-                      year: "numeric",
-                    })
+                  ? new Date(booking.checkOutDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })
                   : "—"}
               </span>
-              <span className="ct-nights">
+              <span className="ct-meta-item">
+                <span className="ct-meta-icon">🌙</span>
                 {nights} night{nights !== 1 ? "s" : ""}
               </span>
+              {booking.propertyName && (
+                <span className="ct-meta-item">
+                  <span className="ct-meta-icon">🏡</span>
+                  {booking.propertyName}
+                </span>
+              )}
             </div>
           </div>
           <div className="ct-card-badges">
-            <span
-              className="ct-badge"
-              style={{ color: status.color, background: status.bg }}
-            >
+            <span className="ct-badge" style={{ color: status.color, background: status.bg }}>
               {status.icon} {status.label}
             </span>
-            <span
-              className="ct-badge ct-badge-payment"
-              style={{ color: payment.color, background: payment.bg }}
-            >
+            <span className="ct-badge ct-badge-payment" style={{ color: payment.color, background: payment.bg }}>
               {payment.label}
             </span>
           </div>
         </div>
 
-        <div className="ct-card-timeline">
-          {timeline.map((evt, i) => (
-            <div className="ct-timeline-item" key={i}>
-              <div className="ct-timeline-dot">{evt.icon}</div>
-              <div className="ct-timeline-content">
-                <span className="ct-timeline-label">{evt.label}</span>
-                <span className="ct-timeline-date">
-                  {evt.date
-                    ? new Date(evt.date).toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                        year: "numeric",
-                      })
-                    : ""}
-                </span>
-              </div>
-              {i < timeline.length - 1 && <div className="ct-timeline-line" />}
+        {/* Status Progress Bar */}
+        {renderStatusBar(booking)}
+
+        {/* Detailed info row */}
+        <div className="ct-card-details" onClick={() => navigate(`/booking/${booking.id}`)}>
+          <div className="ct-detail-item">
+            <span className="ct-detail-label">Check-in</span>
+            <span className="ct-detail-value">
+              {booking.checkInDate
+                ? new Date(booking.checkInDate).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" })
+                : "—"}
+            </span>
+          </div>
+          <div className="ct-detail-item">
+            <span className="ct-detail-label">Check-out</span>
+            <span className="ct-detail-value">
+              {booking.checkOutDate
+                ? new Date(booking.checkOutDate).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric" })
+                : "—"}
+            </span>
+          </div>
+          <div className="ct-detail-item">
+            <span className="ct-detail-label">Total Price</span>
+            <span className="ct-detail-value ct-detail-value--price">${booking.totalPrice}</span>
+          </div>
+          {booking.status !== "CANCELLED" && booking.status !== "REFUNDED" && daysUntil > 0 && (
+            <div className="ct-detail-item ct-detail-item--highlight">
+              <span className="ct-detail-label">Days Until Check-in</span>
+              <span className="ct-detail-value">{daysUntil} day{daysUntil !== 1 ? "s" : ""}</span>
             </div>
-          ))}
+          )}
+          {booking.cancellationPolicy && (
+            <div className="ct-detail-item">
+              <span className="ct-detail-label">Cancellation Policy</span>
+              <span className="ct-detail-value">{booking.cancellationPolicy}</span>
+            </div>
+          )}
         </div>
 
+        {/* Footer with price and actions */}
         <div className="ct-card-footer">
           <div className="ct-card-price">
             <span className="ct-price-label">Total</span>
@@ -353,58 +307,44 @@ const CustomerTripsPage = () => {
           </div>
           <div className="ct-card-actions" onClick={(e) => e.stopPropagation()}>
             {canPay && (
-              <button
-                className="ct-btn ct-btn-pay"
-                onClick={() => handlePayNow(booking.id)}
-              >
+              <button className="ct-btn ct-btn-pay" onClick={() => handlePayNow(booking.id)}>
                 💳 Pay Now
               </button>
             )}
             {canCancel && (
-              <button
-                className="ct-btn ct-btn-cancel"
-                onClick={() => setCancelModal(booking)}
-              >
+              <button className="ct-btn ct-btn-cancel" onClick={() => setCancelModal(booking)}>
                 Cancel Booking
               </button>
             )}
+            <button className="ct-btn ct-btn-view" onClick={() => navigate(`/booking/${booking.id}`)}>
+              View Details →
+            </button>
           </div>
         </div>
 
         <div className="ct-card-id">Booking #{booking.id?.substring(0, 8)}</div>
 
         {/* Show cancellation reason if cancelled */}
-        {(booking.status === "CANCELLED" || booking.status === "REFUNDED") &&
-          booking.cancellationReason && (
-            <div
-              style={{
-                margin: "0 20px 12px",
-                padding: "10px 14px",
-                background: "#fff3f3",
-                border: "1px solid #fca5a5",
-                borderRadius: "8px",
-                fontSize: "13px",
-                color: "#7f1d1d",
-              }}
-            >
-              <strong>Cancellation reason:</strong> {booking.cancellationReason}
+        {(booking.status === "CANCELLED" || booking.status === "REFUNDED") && booking.cancellationReason && (
+          <div className="ct-cancellation-box">
+            <div className="ct-cancellation-box__header">
+              <span>❌</span>
+              <strong>Cancellation Reason</strong>
+              {booking.cancelledBy && <span className="ct-cancelled-by">by {booking.cancelledBy}</span>}
             </div>
-          )}
+            <p>{booking.cancellationReason}</p>
+          </div>
+        )}
 
         {/* Show refund info if refunded */}
-        {booking.status === "REFUNDED" && booking.refundAmount && (
-          <div
-            style={{
-              margin: "0 20px 12px",
-              padding: "10px 14px",
-              background: "#f0fdf4",
-              border: "1px solid #86efac",
-              borderRadius: "8px",
-              fontSize: "13px",
-              color: "#14532d",
-            }}
-          >
-            <strong>💸 Refund issued:</strong> ${booking.refundAmount}
+        {(booking.status === "CANCELLED" || booking.status === "REFUNDED") && booking.refundAmount > 0 && (
+          <div className="ct-refund-box">
+            <span>💸</span>
+            <div>
+              <strong>Refund Amount: ${booking.refundAmount}</strong>
+              {booking.status === "REFUNDED" && <p>Refund has been processed</p>}
+              {booking.status === "CANCELLED" && <p>Refund will be processed by admin</p>}
+            </div>
           </div>
         )}
       </div>
@@ -443,11 +383,7 @@ const CustomerTripsPage = () => {
         ) : activeBookings.length === 0 ? (
           <div className="ct-empty">
             <div className="ct-empty-icon">
-              {activeTab === "current"
-                ? "🏖️"
-                : activeTab === "past"
-                  ? "📋"
-                  : "💤"}
+              {activeTab === "current" ? "🏖️" : activeTab === "past" ? "📋" : "💤"}
             </div>
             <h3>No {activeTab} trips</h3>
             <p>
@@ -458,10 +394,7 @@ const CustomerTripsPage = () => {
                   : "No cancelled bookings."}
             </p>
             {activeTab === "current" && (
-              <button
-                className="ct-btn ct-btn-explore"
-                onClick={() => navigate("/")}
-              >
+              <button className="ct-btn ct-btn-explore" onClick={() => navigate("/")}>
                 Explore homes
               </button>
             )}
@@ -479,40 +412,19 @@ const CustomerTripsPage = () => {
           <div className="ct-modal" onClick={(e) => e.stopPropagation()}>
             <h2>Cancel Booking</h2>
             <div className="ct-modal-details">
-              <p>
-                <strong>Property:</strong>{" "}
-                {getHost(cancelModal.hostId)?.hostDisplayName || "Host's Place"}
-              </p>
-              <p>
-                <strong>Dates:</strong> {cancelModal.checkInDate} →{" "}
-                {cancelModal.checkOutDate}
-              </p>
-              <p>
-                <strong>Total Paid:</strong> ${cancelModal.totalPrice}
-              </p>
+              <p><strong>Property:</strong> {getHost(cancelModal.hostId)?.hostDisplayName || "Host's Place"}</p>
+              <p><strong>Dates:</strong> {cancelModal.checkInDate} → {cancelModal.checkOutDate}</p>
+              <p><strong>Total Paid:</strong> ${cancelModal.totalPrice}</p>
             </div>
 
             <div className="ct-modal-policy">
-              <h4>
-                Cancellation Policy:{" "}
-                {cancelModal.cancellationPolicy || "MODERATE"}
-              </h4>
-              <p>
-                {
-                  CANCELLATION_POLICIES[
-                    cancelModal.cancellationPolicy || "MODERATE"
-                  ]?.desc
-                }
-              </p>
+              <h4>Cancellation Policy: {cancelModal.cancellationPolicy || "MODERATE"}</h4>
+              <p>{CANCELLATION_POLICIES[cancelModal.cancellationPolicy || "MODERATE"]?.desc}</p>
               <div className="ct-refund-preview">
                 <span>Estimated Refund:</span>
                 <strong>
                   {getRefundPercent(cancelModal)}% — $
-                  {Math.round(
-                    ((cancelModal.totalPrice || 0) *
-                      getRefundPercent(cancelModal)) /
-                      100,
-                  )}
+                  {Math.round(((cancelModal.totalPrice || 0) * getRefundPercent(cancelModal)) / 100)}
                 </strong>
               </div>
             </div>
@@ -528,17 +440,10 @@ const CustomerTripsPage = () => {
             </div>
 
             <div className="ct-modal-actions">
-              <button
-                className="ct-btn ct-btn-secondary"
-                onClick={() => setCancelModal(null)}
-              >
+              <button className="ct-btn ct-btn-secondary" onClick={() => setCancelModal(null)}>
                 Keep Booking
               </button>
-              <button
-                className="ct-btn ct-btn-danger"
-                onClick={handleCancelBooking}
-                disabled={cancelling}
-              >
+              <button className="ct-btn ct-btn-danger" onClick={handleCancelBooking} disabled={cancelling}>
                 {cancelling ? "Processing..." : "Confirm Cancellation"}
               </button>
             </div>

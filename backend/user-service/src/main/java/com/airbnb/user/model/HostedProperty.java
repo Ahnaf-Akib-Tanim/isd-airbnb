@@ -53,4 +53,24 @@ public class HostedProperty {
     // Cancellation policy: FLEXIBLE, MODERATE, STRICT
     @Builder.Default
     private String cancellationPolicy = "MODERATE";
+
+    // Property Review Scores
+    private Double averageRating;
+    private Integer reviewCount;
+    private Double cleanlinessScore;
+    private Double accuracyScore;
+    private Double checkInScore;
+    private Double communicationScore;
+    private Double locationScore;
+    private Double valueScore;
+
+    // What this place offers (expanded amenities)
+    @Builder.Default
+    private List<String> essentials = new ArrayList<>();  // Kitchen, Wifi, TV, etc.
+    
+    @Builder.Default
+    private List<String> features = new ArrayList<>();    // Pool, Gym, Parking, etc.
+    
+    @Builder.Default
+    private List<String> safety = new ArrayList<>();      // Smoke alarm, First aid kit, etc.
 }

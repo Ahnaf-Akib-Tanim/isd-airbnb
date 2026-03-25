@@ -1,0 +1,44 @@
+﻿ M .env.example
+ M backend/api-gateway/src/main/resources/application.yml
+ M backend/booking-service/src/main/java/com/airbnb/booking/model/Booking.java
+ M backend/booking-service/src/main/java/com/airbnb/booking/service/BookingService.java
+ M backend/user-service/src/main/java/com/airbnb/user/model/HostedProperty.java
+ M backend/user-service/src/main/java/com/airbnb/user/model/User.java
+ M backend/user-service/src/main/java/com/airbnb/user/seed/HostSeeder.java
+ M docker-compose.yml
+ M frontend/src/App.js
+ M frontend/src/pages/AdminBookingsPage.jsx
+ M frontend/src/pages/BookingDetailsPage.css
+ M frontend/src/pages/BookingDetailsPage.jsx
+ M frontend/src/pages/CustomerTripsPage.css
+ M frontend/src/pages/CustomerTripsPage.jsx
+ M frontend/src/pages/HostDashboardPage.css
+ M frontend/src/pages/HostDashboardPage.jsx
+ M frontend/src/pages/ListingDetailsPage.css
+ M frontend/src/pages/ListingDetailsPage.jsx
+ M frontend/src/pages/PaymentPage.jsx
+ M frontend/src/pages/ReservationPage.css
+ M frontend/src/pages/ReservationPage.jsx
+ M frontend/src/services/bookingService.js
+?? BUILD_FIXES_SUMMARY.md
+?? COMPLETION_SUMMARY.md
+?? DOCKER_BUILD_FIX.md
+?? FINAL_IMPLEMENTATION_SUMMARY.md
+?? FRONTEND_INTEGRATION_FIX.md
+?? HISTORY_TRACKING_TEST_GUIDE.md
+?? IMPLEMENTATION_SUMMARY.md
+?? PAY_LATER_FEATURE_GUIDE.md
+?? QUICK_START_GUIDE.md
+?? REVIEW_AND_HISTORY_IMPLEMENTATION.md
+?? STATUS_FLOW_GUIDE.md
+?? SYSTEM_ARCHITECTURE.md
+?? TEST_IMPLEMENTATION.md
+?? TIMELINE_VISUAL_GUIDE.md
+?? backend/booking-service/src/main/java/com/airbnb/booking/model/BookingHistory.java
+?? backend/review-service/
+?? frontend/src/components/BookingTimeline.css
+?? frontend/src/components/BookingTimeline.jsx
+?? frontend/src/components/ReviewsSection.css
+?? frontend/src/components/ReviewsSection.jsx
+?? frontend/src/services/reviewService.js
+?? status.txt
