@@ -4,7 +4,8 @@
 }
 
 .reservation-container {
-    max-width: 1120px;
+    max-width: 1500px;
+    padding: 0 40px;
     margin: 0 auto;
     padding: 24px;
     padding-top: 100px;

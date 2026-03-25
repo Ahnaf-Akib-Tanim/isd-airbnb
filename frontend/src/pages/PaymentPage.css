@@ -31,7 +31,8 @@
 }
 
 .pp-container {
-  max-width: 1060px;
+  max-width: 1500px;
+  padding: 0 40px;
   margin: 0 auto;
   padding: 24px 20px 60px;
   padding-top: 100px;

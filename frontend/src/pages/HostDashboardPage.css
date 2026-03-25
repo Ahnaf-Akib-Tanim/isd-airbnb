@@ -7,9 +7,9 @@
 }
 
 .hd-container {
-  max-width: 1120px;
+  max-width: 1500px; /* Vastly expanded to utilize horizontal space */
   margin: 0 auto;
-  padding: 0 24px;
+  padding: 0 40px; /* Slight bump for generous side margins */
 }
 
 /* ── Header ── */
