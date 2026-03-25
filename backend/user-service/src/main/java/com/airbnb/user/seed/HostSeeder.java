@@ -218,11 +218,27 @@ public class HostSeeder implements CommandLineRunner {
             double averageRating = 4.55 + random.nextDouble() * 0.4;
             // responseRate in this app is displayed as a raw double, so we keep it 80-100
             double responseRate = 85 + random.nextDouble() * 15;
-
+            
+            // Host stats - declare hostingSinceDate first
             LocalDateTime now = LocalDateTime.now();
             LocalDate hostingSinceDate = LocalDate.now().minusDays(
                 30L * (2 + random.nextInt(36))
             );
+            
+            // Review score breakdown (like Airbnb)
+            double cleanlinessScore = 4.5 + random.nextDouble() * 0.5;
+            double accuracyScore = 4.5 + random.nextDouble() * 0.5;
+            double checkInScore = 4.6 + random.nextDouble() * 0.4;
+            double communicationScore = 4.6 + random.nextDouble() * 0.4;
+            double locationScore = 4.4 + random.nextDouble() * 0.6;
+            double valueScore = 4.3 + random.nextDouble() * 0.7;
+            
+            // Calculate years hosting
+            int yearsHosting = (int) ((System.currentTimeMillis() - hostingSinceDate.atStartOfDay().atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()) / (1000L * 60 * 60 * 24 * 365));
+            String languagesSpoken = pickManyDistinct(random, 
+                List.of("English", "Spanish", "French", "German", "Italian", "Japanese", "Chinese", "Arabic", "Hindi", "Portuguese"), 1, 3)
+                .stream().collect(java.util.stream.Collectors.joining(", "));
+            String responseTime = random.nextDouble() < 0.5 ? "Within an hour" : "Within a few hours";
 
             // Build 1-3 hosted properties for this host
             int numProperties = 1 + random.nextInt(3);
@@ -239,6 +255,25 @@ public class HostSeeder implements CommandLineRunner {
                 List<String> propAmenities = pickManyDistinct(random,
                     List.of("Free Wi-Fi", "Air conditioning", "Kitchen", "Free parking",
                             "TV", "Washer", "Dryer", "Pool", "Hot tub", "Gym"), 3, 6);
+                
+                // What this place offers (expanded amenities)
+                List<String> propEssentials = pickManyDistinct(random,
+                    List.of("Kitchen", "Wifi", "TV", "Heating", "Air conditioning", "Iron", "Hair dryer", "Dedicated workspace"), 3, 5);
+                List<String> propFeatures = pickManyDistinct(random,
+                    List.of("Pool", "Hot tub", "Gym", "Free parking", "EV charger", "BBQ grill", "Outdoor furniture", "Fire pit", "Piano", "Pool table"), 2, 4);
+                List<String> propSafety = pickManyDistinct(random,
+                    List.of("Smoke alarm", "Carbon monoxide alarm", "Fire extinguisher", "First aid kit", "Security cameras", "Lock on bedroom door"), 2, 3);
+                
+                // Property review scores
+                double propCleanlinessScore = 4.5 + random.nextDouble() * 0.5;
+                double propAccuracyScore = 4.5 + random.nextDouble() * 0.5;
+                double propCheckInScore = 4.6 + random.nextDouble() * 0.4;
+                double propCommunicationScore = 4.6 + random.nextDouble() * 0.4;
+                double propLocationScore = 4.4 + random.nextDouble() * 0.6;
+                double propValueScore = 4.3 + random.nextDouble() * 0.7;
+                double propAvgRating = (propCleanlinessScore + propAccuracyScore + propCheckInScore + propCommunicationScore + propLocationScore + propValueScore) / 6.0;
+                int propReviewCount = 5 + random.nextInt(100);
+                
                 String propPolicy = allPolicies.get(random.nextInt(allPolicies.size()));
                 boolean propPayLater = random.nextDouble() < 0.4;
                 List<String> propImages = List.of(
@@ -260,9 +295,20 @@ public class HostSeeder implements CommandLineRunner {
                     .bedTypes(propBedTypes)
                     .nightlyRateUsd(propRate)
                     .amenities(propAmenities)
+                    .essentials(propEssentials)
+                    .features(propFeatures)
+                    .safety(propSafety)
                     .images(propImages)
                     .payLaterAllowed(propPayLater)
                     .cancellationPolicy(propPolicy)
+                    .averageRating(propAvgRating)
+                    .reviewCount(propReviewCount)
+                    .cleanlinessScore(propCleanlinessScore)
+                    .accuracyScore(propAccuracyScore)
+                    .checkInScore(propCheckInScore)
+                    .communicationScore(propCommunicationScore)
+                    .locationScore(propLocationScore)
+                    .valueScore(propValueScore)
                     .build());
             }
 
@@ -325,6 +371,15 @@ public class HostSeeder implements CommandLineRunner {
                 .averageRating(averageRating)
                 .reviewCount(reviewCount)
                 .responseRate(responseRate)
+                .cleanlinessScore(cleanlinessScore)
+                .accuracyScore(accuracyScore)
+                .checkInScore(checkInScore)
+                .communicationScore(communicationScore)
+                .locationScore(locationScore)
+                .valueScore(valueScore)
+                .yearsHosting(yearsHosting)
+                .languagesSpoken(languagesSpoken)
+                .responseTime(responseTime)
                 .lastLoginAt(now.minusDays(random.nextInt(20)))
                 .createdAt(now)
                 .updatedAt(now)

@@ -124,6 +124,21 @@ services:
       - airbnb-network
     restart: unless-stopped
 
+  review-service:
+    build: ./backend/review-service
+    container_name: review-service
+    ports:
+      - "${REVIEW_SERVICE_PORT:-8089}:8089"
+    environment:
+      - SPRING_DATA_MONGODB_URI=${MONGO_URI_REVIEWS}
+      - SPRING_PROFILES_ACTIVE=docker
+      - USER_SERVICE_URL=http://user-service:8081
+    depends_on:
+      - user-service
+    networks:
+      - airbnb-network
+    restart: unless-stopped
+
 networks:
   airbnb-network:
     driver: bridge

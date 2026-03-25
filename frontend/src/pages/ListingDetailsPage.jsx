@@ -5,12 +5,14 @@ import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import "./ListingDetailsPage.css";
 import Footer from "../components/Footer";
+import ReviewsSection from "../components/ReviewsSection";
 
 const ListingDetailsPage = () => {
   const { userId } = useParams();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [host, setHost] = useState(null);
+  const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // Pre-fill from search params
@@ -30,17 +32,27 @@ const ListingDetailsPage = () => {
   const [selectedImage, setSelectedImage] = useState(0);
 
   useEffect(() => {
-    const fetchHost = async () => {
+    const fetchHostAndReviews = async () => {
       try {
-        const res = await api.get(`/api/users/${userId}`);
-        setHost(res.data);
+        const [hostRes, reviewsRes] = await Promise.allSettled([
+          api.get(`/api/users/${userId}`),
+          api.get(`/api/reviews/host/${userId}`)
+        ]);
+        
+        if (hostRes.status === "fulfilled") {
+          setHost(hostRes.value.data);
+        }
+        
+        if (reviewsRes.status === "fulfilled") {
+          setReviews(reviewsRes.value.data || []);
+        }
       } catch (err) {
         console.error("Failed to load host", err);
       } finally {
         setLoading(false);
       }
     };
-    fetchHost();
+    fetchHostAndReviews();
   }, [userId]);
 
   const handleReserve = () => {
@@ -208,6 +220,26 @@ const ListingDetailsPage = () => {
                 </div>
               </>
             )}
+
+            {/* Reviews Section */}
+            {reviews.length > 0 && (
+              <>
+                <hr className="listing-hr" />
+                <ReviewsSection
+                  reviews={reviews}
+                  averageRating={host.averageRating || 0}
+                  reviewCount={host.reviewCount || reviews.length}
+                  categoryScores={{
+                    cleanliness: host.cleanlinessRating || 4.8,
+                    accuracy: host.accuracyRating || 4.7,
+                    checkIn: host.checkInRating || 4.9,
+                    communication: host.communicationRating || 4.8,
+                    location: host.locationRating || 4.6,
+                    value: host.valueRating || 4.7
+                  }}
+                />
+              </>
+            )}
           </div>
 
           {/* Right booking card */}
@@ -262,6 +294,12 @@ const ListingDetailsPage = () => {
             <button className="reserve-btn" onClick={handleReserve}>
               Reserve
             </button>
+
+            {host.payLaterAllowed && (
+              <div className="booking-card__pay-later-badge">
+                ⏰ Pay later option available
+              </div>
+            )}
 
             <p className="booking-card__note">You won't be charged yet</p>
 

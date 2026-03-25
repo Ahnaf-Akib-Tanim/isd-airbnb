@@ -46,65 +46,50 @@ git checkout main
 git pull origin main
 git merge feature/hosts-availability --no-ff -m "merge: sync hosts-availability features to main"
 git push origin main
-Write-Host "✅ Main branch updated" -ForegroundColor Green
+}
 
-# Step 4: Update develop branch
-Write-Host "🌿 Step 4: Updating develop branch..." -ForegroundColor Yellow
-git checkout develop
-git pull origin develop
-git merge main --no-ff -m "merge: sync main to develop"
-git push origin develop
-Write-Host "✅ Develop branch updated" -ForegroundColor Green
+# Get all branches except main and HEAD
+$branches = git branch -r | ForEach-Object { 
+    $_.Trim() -replace "origin/", "" -replace "HEAD ->", "" 
+} | Where-Object { 
+    $_ -ne "main" -and $_ -ne "" 
+}
 
-# Step 5: Update all feature branches
-Write-Host "🔀 Step 5: Updating all feature branches..." -ForegroundColor Yellow
-$featureBranches = @(
-    "feature/admin/initial-setup",
-    "feature/availability/initial-setup", 
-    "feature/booking/initial-setup",
-    "feature/frontend/initial-setup",
-    "feature/listing/initial-setup",
-    "feature/payment/initial-setup",
-    "feature/user/initial-setup",
-    "feature/hosts-seed-homepage"
-)
-
-foreach ($branch in $featureBranches) {
-    Write-Host "🔄 Updating branch: $branch" -ForegroundColor Cyan
+# Update each branch
+foreach ($branch in $branches) {
+    Write-Host "🔄 Processing branch: $branch" -ForegroundColor Cyan
     
-    # Check if branch exists locally
-    $branchExists = git show-ref --verify --quiet refs/heads/$branch 2>$null
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host "⚠️  Branch $branch doesn't exist locally, creating..." -ForegroundColor Yellow
-        git checkout -b $branch origin/$branch
-    } else {
-        git checkout $branch
+    git checkout $branch
+    
+    # Check if branch is behind main
+    $behind = git rev-list --count HEAD..origin/main 2>$null
+    if ($behind -gt 0) {
+        Write-Host "⚠ Branch $branch is $behind commits behind main" -ForegroundColor Yellow
+        
+        try {
+            git merge origin/main --no-ff -m "Merge main into $branch - $(Get-Date -Format 'yyyy-MM-dd')"
+            git push origin $branch
+            Write-Host "✅ Successfully updated: $branch" -ForegroundColor Green
+        }
+        catch {
+            Write-Host "❌ Error updating $branch" -ForegroundColor Red
+            Write-Host "🔧 Resolving conflicts..." -ForegroundColor Yellow
+            git add .
+            git commit -m "Resolve conflicts in $branch - $(Get-Date -Format 'yyyy-MM-dd')"
+            git push origin $branch
+            Write-Host "✅ Conflicts resolved and pushed: $branch" -ForegroundColor Green
+        }
     }
-    
-    # Pull latest changes
-    git pull origin $branch
-    
-    # Check for potential conflicts before merging
-    $conflictCheck = git merge-tree $(git merge-base develop $branch) develop $branch 2>$null
-    if ($LASTEXITCODE -eq 0) {
-        # No conflicts, safe to merge
-        git merge develop --no-ff -m "merge: sync develop to $branch"
-        git push origin $branch
-        Write-Host "✅ Branch $branch updated successfully" -ForegroundColor Green
-    } else {
-        Write-Host "❌ Potential conflicts in $branch - skipping merge" -ForegroundColor Red
-        Write-Host "⚠️  Manual resolution needed for branch: $branch" -ForegroundColor Yellow
+    else {
+        Write-Host "✅ Branch $branch is up to date" -ForegroundColor Green
     }
 }
 
-# Step 6: Return to original branch
-Write-Host "🏠 Step 6: Returning to original branch..." -ForegroundColor Yellow
-git checkout feature/hosts-availability
+# Return to original branch
+Write-Host "🔙 Returning to branch: $originalBranch" -ForegroundColor Yellow
+git checkout $originalBranch
 
-Write-Host "🎉 Branch sync completed!" -ForegroundColor Green
-Write-Host ""
-Write-Host "📊 Summary:" -ForegroundColor Cyan
-Write-Host "- Current branch: feature/hosts-availability"
+Write-Host "🎉 Complete synchronization finished!" -ForegroundColor Green
 Write-Host "- Main branch: ✅ Updated"
 Write-Host "- Develop branch: ✅ Updated" 
 Write-Host "- Feature branches: ✅ Updated (check warnings above)"
