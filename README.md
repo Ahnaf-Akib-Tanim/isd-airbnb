@@ -13,28 +13,33 @@ A full-stack Airbnb-like rental platform built with **Spring Boot microservices*
                         └────────┬────────┘
                                  │ HTTP
                         ┌────────▼────────┐
+                        │ Nginx Load Bal. │
+                        │   (Port: 80)    │
+                        └────────┬────────┘
+                                 │
+                        ┌────────▼────────┐
                         │   API Gateway   │
-                        │   (Port: 8080)  │
+                        │(Ports: 8080x2)  │
                         └────────┬────────┘
                                  │
           ┌──────────────────────┼──────────────────────┐
-          │          │           │           │           │
+          │          │           │           │          │
    ┌──────▼───┐ ┌────▼────┐ ┌───▼────┐ ┌───▼────┐ ┌───▼──────┐
    │  User    │ │Booking  │ │Payment │ │Listing │ │Availabil.│
    │ :8081    │ │ :8082   │ │ :8083  │ │ :8084  │ │  :8085   │
    └──────────┘ └─────────┘ └────────┘ └────────┘ └──────────┘
           │          │
-   ┌──────▼───┐ ┌────▼──────┐ ┌──────────────┐
-   │  Search  │ │Notif.     │ │    Admin     │
-   │  :8086   │ │ :8087     │ │    :8088     │
-   └──────────┘ └───────────┘ └──────────────┘
-          │          │           │     │     │
-          └──────────┴───────────┘     │     │
-                     │                 │     │
-              ┌──────▼─────────────────▼─────▼──────┐
-              │         MongoDB Atlas (Cloud)         │
-              │  userdb | bookingdb | paymentdb | ... │
-              └─────────────────────────────────────-┘
+   ┌──────▼───┐ ┌────▼──────┐ ┌──────────────┐ ┌─────────────┐
+   │  Search  │ │Notif.     │ │    Admin     │ │   Review    │
+   │  :8086   │ │ :8087     │ │    :8088     │ │   :8089     │
+   └──────────┘ └───────────┘ └──────────────┘ └─────────────┘
+          │          │           │     │     │        │
+          └──────────┴───────────┘     │     │        │
+                     │                 │     │        │
+              ┌──────▼─────────────────▼─────▼────────▼───┐
+              │             MongoDB Atlas (Cloud)         │
+              │  userdb | bookingdb | paymentdb | etc...  │
+              └───────────────────────────────────────────┘
 ```
 
 ---
@@ -43,15 +48,17 @@ A full-stack Airbnb-like rental platform built with **Spring Boot microservices*
 
 | Service              | Port | Database         | Responsibility                              |
 |----------------------|------|------------------|---------------------------------------------|
+| **Nginx Proxy**      | 80   | —                | Load balancing across API Gateways          |
 | **API Gateway**      | 8080 | —                | Route all incoming requests                 |
-| **User Service**     | 8081 | `userdb`         | Auth, guest & host profiles                 |
+| **User Service**     | 8081 | `userdb`         | Auth, guest/host profiles, Message/Wishlist |
 | **Booking Service**  | 8082 | `bookingdb`      | Create bookings, status transitions, history|
 | **Payment Service**  | 8083 | `paymentdb`      | Payments, refunds, host payouts             |
 | **Listing Service**  | 8084 | `listingdb`      | Property details, pricing, images           |
 | **Availability Svc** | 8085 | `availabilitydb` | Calendar, date blocking, double-book guard  |
 | **Search Service**   | 8086 | `searchdb`       | Search indexing, filters                    |
 | **Notification Svc** | 8087 | `notificationdb` | Email/SMS/push to guest & host              |
-| **Admin Service**    | 8088 | `admindb`        | Monitoring, force cancel, refund override   |
+| **Admin Service**    | 8088 | `admindb`        | Monitoring, logs, platform moderation       |
+| **Review Service**   | 8089 | `reviewdb`       | Property reviews, host responses, ratings   |
 
 ---
 
@@ -239,6 +246,7 @@ isd-airbnb/
 | `/api/search/**`      | search-service:8086  |
 | `/api/notifications/**`| notification-service:8087 |
 | `/api/admin/**`       | admin-service:8088   |
+| `/api/reviews/**`     | review-service:8089  |
 
 ---
 
