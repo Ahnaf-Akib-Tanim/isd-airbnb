@@ -40,6 +40,7 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
     private final NotificationClient notificationClient;
+    private final SupabaseStorageService supabaseStorageService;
 
     public AuthResponse register(RegisterRequest request) {
         String normalizedEmail = request.getEmail().toLowerCase().trim();
@@ -53,13 +54,16 @@ public class UserService {
 
         validateRegistrationRequest(request);
 
+        String targetBucket = request.getRole() == Role.HOST ? "host" : "guest";
+        String uploadedProfileImage = supabaseStorageService.uploadBase64Image(request.getProfileImage(), targetBucket);
+
         User user = User.builder()
             .firstName(request.getFirstName())
             .lastName(request.getLastName())
             .email(normalizedEmail)
             .password(passwordEncoder.encode(request.getPassword()))
             .phoneNumber(request.getPhoneNumber())
-            .profileImage(request.getProfileImage())
+            .profileImage(uploadedProfileImage)
             .bio(request.getBio())
             .favoriteHostIds(
                 request.getRole() == Role.GUEST
@@ -93,7 +97,9 @@ public class UserService {
             .houseRules(blankToNull(request.getHouseRules()))
             .propertyTypesOffered(cleanList(request.getPropertyTypesOffered()))
             .offeringHighlights(cleanList(request.getOfferingHighlights()))
-            .hostPortfolioImages(cleanList(request.getHostPortfolioImages()))
+            .hostPortfolioImages(cleanList(request.getHostPortfolioImages()).stream()
+                .map(img -> supabaseStorageService.uploadBase64Image(img, "hostproperties"))
+                .collect(Collectors.toList()))
             .guestCapacity(request.getGuestCapacity())
             .bedCount(request.getBedCount())
             .bedTypes(cleanList(request.getBedTypes()))
@@ -357,9 +363,10 @@ public class UserService {
         if (request.getPhoneNumber() != null) user.setPhoneNumber(
             request.getPhoneNumber()
         );
-        if (request.getProfileImage() != null) user.setProfileImage(
-            request.getProfileImage()
-        );
+        if (request.getProfileImage() != null) {
+            String targetBucket = user.getRole() == Role.HOST ? "host" : "guest";
+            user.setProfileImage(supabaseStorageService.uploadBase64Image(request.getProfileImage(), targetBucket));
+        }
         if (request.getBio() != null) user.setBio(request.getBio());
         if (
             request.getFavoriteHostIds() != null && user.getRole() == Role.GUEST
@@ -422,11 +429,11 @@ public class UserService {
         if (request.getOfferingHighlights() != null) user.setOfferingHighlights(
             cleanList(request.getOfferingHighlights())
         );
-        if (
-            request.getHostPortfolioImages() != null
-        ) user.setHostPortfolioImages(
-            cleanList(request.getHostPortfolioImages())
-        );
+        if (request.getHostPortfolioImages() != null) {
+            user.setHostPortfolioImages(cleanList(request.getHostPortfolioImages()).stream()
+                .map(img -> supabaseStorageService.uploadBase64Image(img, "hostproperties"))
+                .collect(Collectors.toList()));
+        }
         if (request.getGuestCapacity() != null) user.setGuestCapacity(
             request.getGuestCapacity()
         );

@@ -33,6 +33,8 @@ services:
       - SPRING_PROFILES_ACTIVE=docker
       - HOST_SEED_ENABLED=false
       - HOST_SEED_COUNT=10
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
     networks:
       - airbnb-network
     restart: unless-stopped
