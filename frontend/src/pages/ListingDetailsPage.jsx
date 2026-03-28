@@ -6,10 +6,13 @@ import "leaflet/dist/leaflet.css";
 import "./ListingDetailsPage.css";
 import Footer from "../components/Footer";
 import ReviewsSection from "../components/ReviewsSection";
+import { useAuth } from "../context/AuthContext";
+import { toast } from "react-toastify";
 
 const ListingDetailsPage = () => {
   const { userId } = useParams();
   const navigate = useNavigate();
+  const { user, isAuthenticated } = useAuth();
   const [searchParams] = useSearchParams();
   const [host, setHost] = useState(null);
   const [reviews, setReviews] = useState([]);
@@ -302,6 +305,45 @@ const ListingDetailsPage = () => {
             )}
 
             <p className="booking-card__note">You won't be charged yet</p>
+
+            {/* Message Host Button */}
+            {user?.role !== "HOST" && (
+              <button
+                className="message-host-btn"
+                onClick={() => {
+                  if (!isAuthenticated) {
+                    toast.info("Please log in to message this host");
+                    navigate("/login");
+                    return;
+                  }
+                  if (user?.userId === userId) {
+                    toast.info("You can't message yourself");
+                    return;
+                  }
+                  navigate(`/inbox?with=${userId}`);
+                }}
+                style={{
+                  width: "100%",
+                  padding: "14px",
+                  marginTop: "12px",
+                  border: "1px solid #222",
+                  borderRadius: "8px",
+                  background: "transparent",
+                  fontSize: "16px",
+                  fontWeight: "600",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "8px",
+                  transition: "all 0.2s",
+                }}
+                onMouseEnter={(e) => { e.target.style.background = "#222"; e.target.style.color = "#fff"; }}
+                onMouseLeave={(e) => { e.target.style.background = "transparent"; e.target.style.color = "#222"; }}
+              >
+                💬 Message Host
+              </button>
+            )}
 
             {nights > 0 && (
               <div className="booking-card__breakdown">
