@@ -21,6 +21,7 @@ const InboxPage = () => {
   const [loadingConversations, setLoadingConversations] = useState(true);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [sending, setSending] = useState(false);
+  const [activeReactionPicker, setActiveReactionPicker] = useState(null);
   const messagesEndRef = useRef(null);
 
   useEffect(() => {
@@ -108,6 +109,17 @@ const InboxPage = () => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
+    }
+  };
+
+  const handleReact = async (msgId, emoji) => {
+    try {
+      if (!msgId) return;
+      const updatedMsg = await messageService.reactToMessage(msgId, emoji);
+      setMessages((prev) => prev.map(m => m.id === msgId ? updatedMsg : m));
+      setActiveReactionPicker(null);
+    } catch (err) {
+      toast.error("Failed to react to message");
     }
   };
 
@@ -245,10 +257,21 @@ const InboxPage = () => {
               ) : (
                 messages.map((msg, idx) => {
                   const isMine = msg.senderId === user?.userId;
+                  const showPicker = activeReactionPicker === msg.id;
+                  
+                  // Compute reaction counts
+                  const reactions = msg.reactions || {};
+                  const reactionCounts = {};
+                  Object.values(reactions).forEach(r => {
+                    reactionCounts[r] = (reactionCounts[r] || 0) + 1;
+                  });
+                  const hasReactions = Object.keys(reactionCounts).length > 0;
+
                   return (
                     <div
-                      key={idx}
+                      key={msg.id || idx}
                       className={`inbox-msg ${isMine ? "inbox-msg--sent" : "inbox-msg--received"}`}
+                      onMouseLeave={() => showPicker && setActiveReactionPicker(null)}
                     >
                       {!isMine && (
                         <div className="inbox-msg__avatar">
@@ -259,9 +282,49 @@ const InboxPage = () => {
                           )}
                         </div>
                       )}
-                      <div className="inbox-msg__bubble shadow-sm">
-                        <p>{msg.content}</p>
-                        <span className="inbox-msg__time">{formatTime(msg.timestamp)}</span>
+                      
+                      <div className="inbox-msg__content-area" style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: isMine ? 'flex-end' : 'flex-start', maxWidth: '100%' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexDirection: isMine ? 'row-reverse' : 'row' }}>
+                          <div className="inbox-msg__bubble shadow-sm" style={{ position: 'relative' }}>
+                            <p>{msg.content}</p>
+                            <span className="inbox-msg__time">{formatTime(msg.timestamp)}</span>
+                          </div>
+                          
+                          {/* Reaction button Trigger */}
+                          <button 
+                            className="reaction-trigger-btn"
+                            onClick={() => setActiveReactionPicker(showPicker ? null : msg.id)}
+                            title="React"
+                            type="button"
+                          >
+                            <svg viewBox="0 0 32 32" width="16" height="16" fill="currentColor"><path d="M16 2a14 14 0 1 0 14 14A14.016 14.016 0 0 0 16 2Zm0 26a12 12 0 1 1 12-12 12.014 12.014 0 0 1-12 12Z"/><path d="M11.5 11A2.5 2.5 0 1 0 14 13.5 2.5 2.5 0 0 0 11.5 11Zm0 3A.5.5 0 1 1 12 13.5.5.5 0 0 1 11.5 14Z"/><path d="M20.5 11A2.5 2.5 0 1 0 23 13.5 2.5 2.5 0 0 0 20.5 11Zm0 3A.5.5 0 1 1 21 13.5.5.5 0 0 1 20.5 14Z"/><path d="M16 24a8 8 0 0 0 6.858-3.88l-1.716-1.026A6.002 6.002 0 0 1 16 22a6.002 6.002 0 0 1-5.142-2.906l-1.716 1.026A8 8 0 0 0 16 24Z"/></svg>
+                          </button>
+                          
+                          {/* Reaction Picker Popup */}
+                          {showPicker && (
+                            <div className="reaction-picker shadow-sm">
+                              {["👍", "👎", "❤️", "😂"].map(emoji => (
+                                <span 
+                                  key={emoji} 
+                                  onClick={() => handleReact(msg.id, emoji)}
+                                  className="reaction-emoji"
+                                  role="button"
+                                >
+                                  {emoji}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Display Reactions */}
+                        {hasReactions && (
+                          <div className="reaction-display shadow-sm" title={Object.entries(reactions).map(([u, r]) => `${u === user?.userId ? 'You' : 'User'}: ${r}`).join(', ')}>
+                            {Object.entries(reactionCounts).map(([emoji, count]) => (
+                              <span key={emoji}>{emoji} {count > 1 ? count : ''}</span>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
