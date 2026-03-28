@@ -85,6 +85,26 @@ public class UserController {
         return ResponseEntity.ok(userService.getAccessProfileByUserId(userId));
     }
 
+    @PutMapping("/host/{hostId}/rating")
+    public ResponseEntity<Void> updateHostRating(
+        @PathVariable String hostId,
+        @RequestParam Double averageRating,
+        @RequestParam(required = false) Double cleanlinessRating,
+        @RequestParam(required = false) Double accuracyRating,
+        @RequestParam(required = false) Double checkInRating,
+        @RequestParam(required = false) Double communicationRating,
+        @RequestParam(required = false) Double locationRating,
+        @RequestParam(required = false) Double valueRating,
+        @RequestParam(required = false) Integer reviewCount
+    ) {
+        userService.updateHostRating(
+            hostId, averageRating, reviewCount,
+            cleanlinessRating, accuracyRating, checkInRating,
+            communicationRating, locationRating, valueRating
+        );
+        return ResponseEntity.ok().build();
+    }
+
     @GetMapping("/admin/all")
     public ResponseEntity<List<UserProfileResponse>> getAllUsers() {
         return ResponseEntity.ok(userService.getAllUsers());

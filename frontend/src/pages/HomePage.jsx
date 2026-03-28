@@ -2,9 +2,12 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { Link, useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
 import Footer from "../components/Footer";
 import "../components/Navbar.css";
+import { useAuth } from "../context/AuthContext";
 import { getHostSuggestions } from "../services/hostsService";
+import userService from "../services/userService";
 import {
   getNightlyRate,
   getTaxPercent,
@@ -13,12 +16,43 @@ import {
 } from "../utils/hostUtils";
 import { getOptimizedImageUrl } from "../utils/imageUtils";
 
-const ITEMS_PER_PAGE = 35; // 7 countries × 5 properties = 35 per page
+const ITEMS_PER_PAGE = 150; // Increased items to get more full rows per country
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 const CACHE_KEY = "host_suggestions_cache";
 
 const HomePage = () => {
   const navigate = useNavigate();
+  const { user, isAuthenticated, updateUser } = useAuth();
+  const [favorites, setFavorites] = useState(new Set(user?.favoriteHostIds || []));
+
+  // Keep favorites in sync with user context
+  useEffect(() => {
+    setFavorites(new Set(user?.favoriteHostIds || []));
+  }, [user?.favoriteHostIds]);
+
+  const handleToggleFavorite = async (e, hostId) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isAuthenticated) {
+      toast.info("Please log in to save to your wishlists");
+      navigate("/login");
+      return;
+    }
+    try {
+      const updated = await userService.toggleFavoriteHost(hostId);
+      const newFavs = updated.favoriteHostIds || [];
+      setFavorites(new Set(newFavs));
+      updateUser({ favoriteHostIds: newFavs });
+      if (newFavs.includes(hostId)) {
+        toast.success("Saved to wishlist");
+      } else {
+        toast.info("Removed from wishlist");
+      }
+    } catch (err) {
+      console.error("Failed to toggle favorite:", err);
+      toast.error("Failed to update wishlist");
+    }
+  };
 
   const [hosts, setHosts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -274,25 +308,23 @@ const HomePage = () => {
       return groups;
     }, {});
 
-    // Show exactly 5 properties per country in one full row
-    const PROPERTIES_PER_COUNTRY = 5;
+    // Filter to prioritize countries with at least 5 hosts so we get full rows
+    const validCountryEntries = Object.entries(groupedHosts).filter(
+      ([country, hosts]) => hosts.length >= 5
+    );
+
+    // If too few countries meet the criteria, fallback to all
+    const entriesToDisplay =
+      validCountryEntries.length >= 2 ? validCountryEntries : Object.entries(groupedHosts);
 
     // Limit to maximum 7 countries per page
-    const countryEntries = Object.entries(groupedHosts).slice(0, 7);
+    const countryEntries = entriesToDisplay.slice(0, 7);
 
     return countryEntries.map(([country, hosts]) => {
-      // Take exactly 5 properties per country, or pad with duplicates if fewer
-      let selectedHosts = hosts.slice(0, PROPERTIES_PER_COUNTRY);
-
-      // If we have fewer than 5, repeat some to fill the row
-      if (selectedHosts.length < PROPERTIES_PER_COUNTRY) {
-        const needed = PROPERTIES_PER_COUNTRY - selectedHosts.length;
-        const repeats = [];
-        for (let i = 0; i < needed; i++) {
-          repeats.push(selectedHosts[i % selectedHosts.length]);
-        }
-        selectedHosts = [...selectedHosts, ...repeats];
-      }
+      // To ensure full rows, slice to the highest multiple of 5, max 10
+      const maxItems = Math.floor(hosts.length / 5) * 5;
+      const displayCount = maxItems > 0 ? Math.min(maxItems, 10) : hosts.length;
+      const selectedHosts = hosts.slice(0, displayCount);
 
       return (
         <div key={country} className="location-group">
@@ -350,23 +382,14 @@ const HomePage = () => {
               }}
             />
             <button
-              className="home-suggest__heart"
-              onClick={(e) => e.preventDefault()}
+              className={`home-suggest__heart ${favorites.has(host.userId) ? "active" : ""}`}
+              onClick={(e) => handleToggleFavorite(e, host.userId)}
             >
               <svg
                 viewBox="0 0 32 32"
                 aria-hidden="true"
                 role="presentation"
                 focusable="false"
-                style={{
-                  display: "block",
-                  fill: "rgba(0,0,0,0.5)",
-                  height: "24px",
-                  width: "24px",
-                  stroke: "white",
-                  strokeWidth: 2,
-                  overflow: "visible",
-                }}
               >
                 <path d="m16 28c7-4.733 14-10 14-17 0-1.792-.683-3.583-2.05-4.95-1.367-1.366-3.158-2.05-4.95-2.05-1.791 0-3.583.684-4.949 2.05l-2.051 2.051-2.05-2.051c-1.367-1.366-3.158-2.05-4.95-2.05-1.791 0-3.583.684-4.949 2.05-1.367 1.367-2.051 3.158-2.051 4.95 0 7 7 12.267 14 17z" />
               </svg>
@@ -813,6 +836,27 @@ const HomePage = () => {
         .guest-counter { display: flex; align-items: center; gap: 10px; }
         .guest-counter button { width: 30px; height: 30px; border-radius: 50%; border: 1px solid #ddd; background: white; display: grid; place-items: center; color: #717171; }
         .guest-counter button:hover { border-color: #222; color: #222; }
+        .home-suggest__heart svg {
+          display: block;
+          fill: rgba(0,0,0,0.5);
+          height: 24px;
+          width: 24px;
+          stroke: white;
+          stroke-width: 2px;
+          overflow: visible;
+          transition: transform 0.2s ease, fill 0.2s ease;
+        }
+        .home-suggest__heart.active svg {
+          fill: #FF385C;
+          stroke: #FF385C;
+          transform: scale(1.05);
+        }
+        .home-suggest__heart:hover svg {
+          transform: scale(1.1);
+        }
+        .home-suggest__heart:active svg {
+          transform: scale(0.95);
+        }
       `}</style>
     </div>
   );
