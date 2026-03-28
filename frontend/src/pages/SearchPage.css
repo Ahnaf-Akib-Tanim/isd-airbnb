@@ -149,6 +149,33 @@
     background: transparent;
     border: none;
     cursor: pointer;
+    z-index: 2;
+    padding: 0;
+}
+
+.search-card__heart svg {
+    display: block;
+    fill: rgba(0,0,0,0.5);
+    height: 24px;
+    width: 24px;
+    stroke: white;
+    stroke-width: 2px;
+    overflow: visible;
+    transition: transform 0.2s ease, fill 0.2s ease;
+}
+
+.search-card__heart.active svg {
+    fill: #FF385C;
+    stroke: #FF385C;
+    transform: scale(1.05);
+}
+
+.search-card__heart:hover svg {
+    transform: scale(1.1);
+}
+
+.search-card__heart:active svg {
+    transform: scale(0.95);
 }
 
 .search-card__content {
