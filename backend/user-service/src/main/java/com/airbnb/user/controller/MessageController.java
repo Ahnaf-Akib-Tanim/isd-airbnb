@@ -29,6 +29,16 @@ public class MessageController {
         );
     }
 
+    @PostMapping("/{messageId}/react")
+    public ResponseEntity<Message> reactToMessage(
+        Authentication authentication,
+        @PathVariable String messageId,
+        @RequestParam String reaction
+    ) {
+        String email = authentication.getName();
+        return ResponseEntity.ok(messageService.reactToMessage(email, messageId, reaction));
+    }
+
     @GetMapping("/conversations")
     public ResponseEntity<Map<String, Object>> getConversations(
         Authentication authentication
