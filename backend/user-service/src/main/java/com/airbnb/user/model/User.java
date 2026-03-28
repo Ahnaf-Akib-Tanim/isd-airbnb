@@ -126,12 +126,12 @@ public class User {
     private Double responseRate;
 
     // Review Score Breakdown (like Airbnb)
-    private Double cleanlinessScore;     // Out of 5.0
-    private Double accuracyScore;        // Out of 5.0
-    private Double checkInScore;         // Out of 5.0
-    private Double communicationScore;   // Out of 5.0
-    private Double locationScore;        // Out of 5.0
-    private Double valueScore;           // Out of 5.0
+    private Double cleanlinessRating;     // Out of 5.0
+    private Double accuracyRating;        // Out of 5.0
+    private Double checkInRating;         // Out of 5.0
+    private Double communicationRating;   // Out of 5.0
+    private Double locationRating;        // Out of 5.0
+    private Double valueRating;           // Out of 5.0
 
     // Host stats
     private Integer yearsHosting;

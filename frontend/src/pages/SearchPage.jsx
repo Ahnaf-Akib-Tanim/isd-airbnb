@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { toast } from "react-toastify";
 import Footer from "../components/Footer";
 import "../components/Navbar.css";
 import SearchResultsMap from "../components/SearchResultsMap";
+import { useAuth } from "../context/AuthContext";
 import { searchHosts } from "../services/hostsService";
+import userService from "../services/userService";
 import {
   getNightlyRate,
   getTaxPercent,
@@ -19,6 +22,32 @@ const CACHE_DURATION = 3 * 60 * 1000; // 3 minutes for search results
 const SearchPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { user, isAuthenticated, updateUser } = useAuth();
+  const [favorites, setFavorites] = useState(new Set(user?.favoriteHostIds || []));
+
+  useEffect(() => {
+    setFavorites(new Set(user?.favoriteHostIds || []));
+  }, [user?.favoriteHostIds]);
+
+  const handleToggleFavorite = async (e, hostId) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isAuthenticated) {
+      toast.info("Please log in to save to your wishlists");
+      navigate("/login");
+      return;
+    }
+    try {
+      const updated = await userService.toggleFavoriteHost(hostId);
+      const newFavs = updated.favoriteHostIds || [];
+      setFavorites(new Set(newFavs));
+      updateUser({ favoriteHostIds: newFavs });
+      toast.success(newFavs.includes(hostId) ? "Saved to wishlist" : "Removed from wishlist");
+    } catch (err) {
+      toast.error("Failed to update wishlist");
+    }
+  };
+
   const locationQuery = searchParams.get("location") || "";
   const checkin = searchParams.get("checkin");
   const checkout = searchParams.get("checkout");
@@ -443,21 +472,12 @@ const SearchPage = () => {
                           </div>
                         )}
                         <button
-                          className="search-card__heart"
-                          onClick={(e) => e.stopPropagation()}
+                          className={`search-card__heart ${favorites.has(host.userId) ? "active" : ""}`}
+                          onClick={(e) => handleToggleFavorite(e, host.userId)}
                         >
                           <svg
                             viewBox="0 0 32 32"
                             aria-hidden="true"
-                            style={{
-                              display: "block",
-                              fill: "rgba(0,0,0,0.5)",
-                              height: "24px",
-                              width: "24px",
-                              stroke: "white",
-                              strokeWidth: 2,
-                              overflow: "visible",
-                            }}
                           >
                             <path d="m16 28c7-4.733 14-10 14-17 0-1.792-.683-3.583-2.05-4.95-1.367-1.366-3.158-2.05-4.95-2.05-1.791 0-3.583.684-4.949 2.05l-2.051 2.051-2.05-2.051c-1.367-1.366-3.158-2.05-4.95-2.05-1.791 0-3.583.684-4.949 2.05-1.367 1.367-2.051 3.158-2.051 4.95 0 7 7 12.267 14 17z" />
                           </svg>

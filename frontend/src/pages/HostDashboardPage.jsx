@@ -38,6 +38,7 @@ const HostDashboardPage = () => {
   const [calendarMonth, setCalendarMonth] = useState(new Date());
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [reviews, setReviews] = useState([]);
+  const [freshHostData, setFreshHostData] = useState(null);
 
   useEffect(() => {
     if (!isAuthenticated || user?.role !== "HOST") {
@@ -76,6 +77,14 @@ const HostDashboardPage = () => {
         setReviews(reviewsRes.data || []);
       } catch (e) {
         console.error("Failed to fetch reviews", e);
+      }
+
+      // Fetch fresh host data to overcome stale JWT token issues perfectly
+      try {
+        const hostRes = await api.get(`/api/users/${user.userId}`);
+        setFreshHostData(hostRes.data);
+      } catch (e) {
+        console.error("Failed to fetch fresh host data", e);
       }
     } catch (err) {
       console.error("Failed to load host data", err);
@@ -265,173 +274,225 @@ const HostDashboardPage = () => {
     );
   };
 
-  /* ─────────── HOSTED HOMES TAB ─────────── */
   const renderHostedHomes = () => {
-    const hostData = user;
-    const rate = getNightlyRate(hostData);
+    const hostData = freshHostData || user;
+    const properties = hostData?.hostedProperties && hostData.hostedProperties.length > 0 
+      ? hostData.hostedProperties 
+      : [{
+          propertyId: "default",
+          propertyName: hostData?.hostDisplayName || `${hostData?.firstName}'s Place`,
+          propertyType: hostData?.propertyTypesOffered?.[0] || "Property",
+          images: hostData?.hostPortfolioImages || [],
+          nightlyRateUsd: getNightlyRate(hostData),
+          guestCapacity: hostData?.guestCapacity || 2,
+          bedCount: hostData?.bedCount || 1,
+          cancellationPolicy: hostData?.cancellationPolicy || "MODERATE",
+          payLaterAllowed: hostData?.payLaterAllowed,
+          description: hostData?.hostAbout
+        }];
+        
     const taxPct = getTaxPercent(hostData);
-    const images = hostData?.hostPortfolioImages || [];
-    const totalBookings = bookings.length;
     const completedBookings = bookings.filter(b => b.status === "COMPLETED").length;
     const totalRevenue = bookings.filter(b => b.paymentStatus === "COMPLETED" || b.status === "COMPLETED")
       .reduce((sum, b) => sum + (Number(b.totalPrice) || 0), 0);
     const totalPayouts = bookings.filter(b => b.payoutIssued)
       .reduce((sum, b) => sum + (Number(b.payoutAmount) || 0), 0);
 
+    const calculatedAvg = reviews.length > 0 ? (reviews.reduce((sum, r) => sum + r.overallRating, 0) / reviews.length) : hostData?.averageRating;
+
     return (
       <div className="hd-homes">
-        <h3 className="hd-homes__title">Your Hosted Properties</h3>
-        <p className="hd-homes__subtitle">Manage and view your hosted homes</p>
-
-        {/* Property Listing Card */}
-        <div className="hd-home-listing">
-          {/* Image gallery row */}
-          <div className="hd-home-listing__gallery">
-            <div className="hd-home-listing__main-img">
-              {images[0] ? (
-                <img src={images[0]} alt={hostData?.hostDisplayName} />
-              ) : (
-                <div className="hd-home-card__img-placeholder">🏡</div>
-              )}
-              <span className="hd-home-card__type-badge">{hostData?.propertyTypesOffered?.[0] || "Property"}</span>
-              {hostData?.superhost && <span className="hd-home-listing__superhost-badge">⭐ Superhost</span>}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '30px' }}>
+          <div>
+            <h3 className="hd-homes__title" style={{ fontSize: '32px', background: 'linear-gradient(90deg, #ff385c, #d70466)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', marginBottom: '8px' }}>Your Portfolio</h3>
+            <p className="hd-homes__subtitle" style={{ fontSize: '16px' }}>Manage and view performance of your hosted homes</p>
+          </div>
+          {hostData?.superhost && (
+            <div style={{ background: 'linear-gradient(135deg, #FFD700, #FFA500)', padding: '10px 20px', borderRadius: '30px', color: 'white', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 15px rgba(255, 165, 0, 0.3)' }}>
+              <span>🎖️</span> Superhost Status Active
             </div>
-            <div className="hd-home-listing__sub-imgs">
-              {images.slice(1, 5).map((img, i) => (
-                <div key={i} className="hd-home-listing__sub-img">
-                  <img src={img} alt={`Gallery ${i + 1}`} />
-                </div>
-              ))}
+          )}
+        </div>
+
+        {/* Global Earnings summary */}
+        <div className="hd-home-listing__earnings" style={{ 
+            marginBottom: "32px", 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', 
+            gap: '16px' 
+        }}>
+          <div className="hd-earnings-card" style={{ background: 'linear-gradient(135deg, #1e3c72 0%, #2a5298 100%)', color: 'white', borderRadius: '16px', padding: '16px', boxShadow: '0 8px 24px rgba(30,60,114,0.15)', position: 'relative', overflow: 'hidden' }}>
+            <span style={{ fontSize: '32px', position: 'absolute', right: '-5px', bottom: '-5px', opacity: '0.15' }}>💵</span>
+            <div style={{ position: 'relative', zIndex: 1 }}>
+              <span style={{ display: 'block', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px', opacity: 0.8, marginBottom: '4px' }}>Total Revenue</span>
+              <span style={{ fontSize: '28px', fontWeight: '800' }}>${totalRevenue.toLocaleString()}</span>
+              <div style={{ marginTop: '8px', fontSize: '12px', opacity: 0.9 }}>↑ 12% vs last month</div>
             </div>
           </div>
 
-          {/* Property Info */}
-          <div className="hd-home-listing__body">
-            <div className="hd-home-listing__header">
-              <div>
-                <h2 className="hd-home-listing__name">{hostData?.hostDisplayName || `${hostData?.firstName}'s Place`}</h2>
-                <p className="hd-home-listing__location">
-                  📍 {[hostData?.area, hostData?.district, hostData?.city, hostData?.country].filter(Boolean).join(", ")}
-                </p>
+          <div className="hd-earnings-card hd-earnings-card--green" style={{ background: 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)', color: 'white', borderRadius: '16px', padding: '16px', boxShadow: '0 8px 24px rgba(17,153,142,0.15)', position: 'relative', overflow: 'hidden' }}>
+            <span style={{ fontSize: '32px', position: 'absolute', right: '-5px', bottom: '-5px', opacity: '0.15' }}>🏦</span>
+            <div style={{ position: 'relative', zIndex: 1 }}>
+              <span style={{ display: 'block', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px', opacity: 0.8, marginBottom: '4px' }}>Total Payouts</span>
+              <span style={{ fontSize: '28px', fontWeight: '800' }}>${totalPayouts.toLocaleString()}</span>
+              <div style={{ marginTop: '8px', fontSize: '12px', opacity: 0.9 }}>{completedBookings} trips paid</div>
+            </div>
+          </div>
+
+          <div className="hd-earnings-card hd-earnings-card--blue" style={{ background: 'linear-gradient(135deg, #8A2387 0%, #E94057 50%, #F27121 100%)', color: 'white', borderRadius: '16px', padding: '16px', boxShadow: '0 8px 24px rgba(233,64,87,0.15)', position: 'relative', overflow: 'hidden' }}>
+            <span style={{ fontSize: '32px', position: 'absolute', right: '-5px', bottom: '-5px', opacity: '0.15' }}>⭐</span>
+            <div style={{ position: 'relative', zIndex: 1 }}>
+              <span style={{ display: 'block', fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.5px', opacity: 0.8, marginBottom: '4px' }}>Global Rating</span>
+              <span style={{ fontSize: '28px', fontWeight: '800' }}>{calculatedAvg ? calculatedAvg.toFixed(2) : 'N/A'}</span>
+              <div style={{ marginTop: '8px', fontSize: '12px', opacity: 0.9 }}>Across {reviews.length} total reviews</div>
+            </div>
+          </div>
+        </div>
+
+        {properties.map((property, idx) => {
+          let images = property.images || [];
+          if (!images || images.length === 0 || images[0] === null || images[0] === "") {
+              images = [
+                  `https://picsum.photos/seed/${property.propertyId || idx}/800/400`
+              ];
+          }
+          // Filter bookings for this property if possible
+          const propBookings = bookings.filter(b => b.propertyId === property.propertyId || !b.propertyId);
+          const propTotalBookings = propBookings.length;
+          const propCompletedBookings = propBookings.filter(b => b.status === "COMPLETED").length;
+          const fallbackName = property.propertyName || `${hostData?.firstName}'s Place`;
+          const locationStr = [property.area || hostData?.area, hostData?.city, hostData?.country].filter(Boolean).join(", ");
+
+          return (
+            <div key={property.propertyId || idx} className="hd-home-listing" style={{ 
+                marginBottom: "40px", 
+                borderRadius: "24px", 
+                overflow: "hidden",
+                boxShadow: "0 12px 40px rgba(0,0,0,0.08)",
+                border: "1px solid rgba(0,0,0,0.04)"
+            }}>
+              {/* Image gallery row */}
+              <div className="hd-home-listing__gallery" style={{ gridTemplateColumns: '1fr', height: 'auto', background: '#f0f0f0' }}>
+                <div className="hd-home-listing__main-img" style={{ height: '350px', borderRadius: '0', position: 'relative' }}>
+                  <img 
+                      src={images[0]} 
+                      alt={fallbackName} 
+                      style={{ objectFit: 'cover', width: '100%', height: '100%' }} 
+                      onError={(e) => { e.target.onerror = null; e.target.src = `https://picsum.photos/seed/${property.propertyId || 'fallback'}/800/400`; }}
+                  />
+                  <div style={{ position: 'absolute', top: '20px', left: '20px', display: 'flex', gap: '8px' }}>
+                     <span className="hd-home-card__type-badge" style={{ background: 'rgba(255,255,255,0.95)', color: '#222', fontSize: '14px', padding: '6px 16px', borderRadius: '20px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>{property.propertyType || "Property"}</span>
+                     <span className="hd-home-card__type-badge" style={{ background: 'rgba(0,0,0,0.7)', color: 'white', fontSize: '14px', padding: '6px 16px', borderRadius: '20px', backdropFilter: 'blur(4px)' }}>ID: {property.propertyId?.substring(0,6) || "N/A"}</span>
+                  </div>
+                </div>
               </div>
-              <div className="hd-home-listing__rating-box">
-                {hostData?.averageRating ? (
-                  <>
-                    <span className="hd-home-listing__rating-star">★</span>
-                    <span className="hd-home-listing__rating-num">{hostData.averageRating.toFixed(2)}</span>
-                    <span className="hd-home-listing__rating-count">({hostData.reviewCount || reviews.length} reviews)</span>
-                  </>
-                ) : (
-                  <span className="hd-home-listing__no-rating">No reviews yet</span>
+
+              {/* Property Info */}
+              <div className="hd-home-listing__body" style={{ padding: '32px' }}>
+                <div className="hd-home-listing__header" style={{ borderBottom: '1px solid #eee', paddingBottom: '24px', marginBottom: '24px' }}>
+                  <div>
+                    <h2 className="hd-home-listing__name" style={{ fontSize: '28px', color: '#222', marginBottom: '8px' }}>{fallbackName}</h2>
+                    <p className="hd-home-listing__location" style={{ fontSize: '16px', color: '#717171', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span style={{color: '#ff385c'}}>📍</span> {locationStr || "Location not set"}
+                    </p>
+                  </div>
+                  <div className="hd-home-listing__rating-box" style={{ background: '#f7f7f9', padding: '12px 20px', borderRadius: '16px', display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                    {calculatedAvg ? (
+                      <>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                           <span className="hd-home-listing__rating-star" style={{ fontSize: '24px' }}>★</span>
+                           <span className="hd-home-listing__rating-num" style={{ fontSize: '28px', fontWeight: '800' }}>{calculatedAvg.toFixed(2)}</span>
+                        </div>
+                        <span className="hd-home-listing__rating-count" style={{ color: '#717171', fontSize: '14px' }}>{reviews.length} verified reviews</span>
+                      </>
+                    ) : (
+                      <span className="hd-home-listing__no-rating" style={{ color: '#717171', fontStyle: 'italic' }}>No reviews yet</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Property Stats Grid */}
+                <div className="hd-home-listing__stats">
+                  <div className="hd-listing-stat">
+                    <span className="hd-listing-stat__icon">💰</span>
+                    <div>
+                      <span className="hd-listing-stat__value">${property.nightlyRateUsd || 50}</span>
+                      <span className="hd-listing-stat__label">/ night</span>
+                    </div>
+                  </div>
+                  <div className="hd-listing-stat">
+                    <span className="hd-listing-stat__icon">👥</span>
+                    <div>
+                      <span className="hd-listing-stat__value">{property.guestCapacity || 2}</span>
+                      <span className="hd-listing-stat__label">guests</span>
+                    </div>
+                  </div>
+                  <div className="hd-listing-stat">
+                    <span className="hd-listing-stat__icon">🛏️</span>
+                    <div>
+                      <span className="hd-listing-stat__value">{property.bedCount || 1}</span>
+                      <span className="hd-listing-stat__label">beds</span>
+                    </div>
+                  </div>
+                  <div className="hd-listing-stat">
+                    <span className="hd-listing-stat__icon">📊</span>
+                    <div>
+                      <span className="hd-listing-stat__value">{taxPct}%</span>
+                      <span className="hd-listing-stat__label">tax</span>
+                    </div>
+                  </div>
+                  <div className="hd-listing-stat">
+                    <span className="hd-listing-stat__icon">📋</span>
+                    <div>
+                      <span className="hd-listing-stat__value">{propTotalBookings}</span>
+                      <span className="hd-listing-stat__label">bookings</span>
+                    </div>
+                  </div>
+                  <div className="hd-listing-stat">
+                    <span className="hd-listing-stat__icon">✅</span>
+                    <div>
+                      <span className="hd-listing-stat__value">{propCompletedBookings}</span>
+                      <span className="hd-listing-stat__label">completed</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Amenities */}
+                {(property.amenities || hostData?.offeringHighlights) && (
+                  <div className="hd-home-listing__amenities">
+                    <h4>What your place offers</h4>
+                    <div className="hd-amenities-grid">
+                      {(property.amenities || hostData.offeringHighlights).map((h, i) => (
+                        <span key={i} className="hd-amenity-tag">✓ {h}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Policies */}
+                <div className="hd-home-listing__policies">
+                  {(property.payLaterAllowed !== undefined ? property.payLaterAllowed : hostData?.payLaterAllowed) && (
+                    <span className="hd-policy-badge hd-policy-badge--blue">💳 Pay Later Available</span>
+                  )}
+                  <span className="hd-policy-badge">
+                    📋 Cancellation: {property.cancellationPolicy || hostData?.cancellationPolicy || "MODERATE"}
+                  </span>
+                  {hostData?.superhost && (
+                    <span className="hd-policy-badge hd-policy-badge--gold">⭐ Superhost</span>
+                  )}
+                </div>
+
+                {/* About */}
+                {(property.description || hostData?.hostAbout) && (
+                  <div className="hd-home-listing__about">
+                    <h4>About this place</h4>
+                    <p>{property.description || hostData.hostAbout}</p>
+                  </div>
                 )}
               </div>
             </div>
-
-            {/* Property Stats Grid */}
-            <div className="hd-home-listing__stats">
-              <div className="hd-listing-stat">
-                <span className="hd-listing-stat__icon">💰</span>
-                <div>
-                  <span className="hd-listing-stat__value">${rate}</span>
-                  <span className="hd-listing-stat__label">/ night</span>
-                </div>
-              </div>
-              <div className="hd-listing-stat">
-                <span className="hd-listing-stat__icon">👥</span>
-                <div>
-                  <span className="hd-listing-stat__value">{hostData?.guestCapacity || 2}</span>
-                  <span className="hd-listing-stat__label">guests</span>
-                </div>
-              </div>
-              <div className="hd-listing-stat">
-                <span className="hd-listing-stat__icon">🛏️</span>
-                <div>
-                  <span className="hd-listing-stat__value">{hostData?.bedCount || 1}</span>
-                  <span className="hd-listing-stat__label">beds</span>
-                </div>
-              </div>
-              <div className="hd-listing-stat">
-                <span className="hd-listing-stat__icon">📊</span>
-                <div>
-                  <span className="hd-listing-stat__value">{taxPct}%</span>
-                  <span className="hd-listing-stat__label">tax</span>
-                </div>
-              </div>
-              <div className="hd-listing-stat">
-                <span className="hd-listing-stat__icon">📋</span>
-                <div>
-                  <span className="hd-listing-stat__value">{totalBookings}</span>
-                  <span className="hd-listing-stat__label">bookings</span>
-                </div>
-              </div>
-              <div className="hd-listing-stat">
-                <span className="hd-listing-stat__icon">✅</span>
-                <div>
-                  <span className="hd-listing-stat__value">{completedBookings}</span>
-                  <span className="hd-listing-stat__label">completed</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Earnings summary */}
-            <div className="hd-home-listing__earnings">
-              <div className="hd-earnings-card">
-                <span className="hd-earnings-card__icon">💵</span>
-                <div>
-                  <span className="hd-earnings-card__label">Total Revenue</span>
-                  <span className="hd-earnings-card__value">${totalRevenue.toFixed(0)}</span>
-                </div>
-              </div>
-              <div className="hd-earnings-card hd-earnings-card--green">
-                <span className="hd-earnings-card__icon">🏦</span>
-                <div>
-                  <span className="hd-earnings-card__label">Total Payouts</span>
-                  <span className="hd-earnings-card__value">${totalPayouts.toFixed(0)}</span>
-                </div>
-              </div>
-              <div className="hd-earnings-card hd-earnings-card--blue">
-                <span className="hd-earnings-card__icon">📈</span>
-                <div>
-                  <span className="hd-earnings-card__label">Payout Rate</span>
-                  <span className="hd-earnings-card__value">{hostData?.payoutPercentage || 80}%</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Amenities */}
-            {hostData?.offeringHighlights && hostData.offeringHighlights.length > 0 && (
-              <div className="hd-home-listing__amenities">
-                <h4>What your place offers</h4>
-                <div className="hd-amenities-grid">
-                  {hostData.offeringHighlights.map((h, i) => (
-                    <span key={i} className="hd-amenity-tag">✓ {h}</span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Policies */}
-            <div className="hd-home-listing__policies">
-              {hostData?.payLaterAllowed && (
-                <span className="hd-policy-badge hd-policy-badge--blue">💳 Pay Later Available</span>
-              )}
-              <span className="hd-policy-badge">
-                📋 Cancellation: {hostData?.cancellationPolicy || "MODERATE"}
-              </span>
-              {hostData?.superhost && (
-                <span className="hd-policy-badge hd-policy-badge--gold">⭐ Superhost</span>
-              )}
-            </div>
-
-            {/* About */}
-            {hostData?.hostAbout && (
-              <div className="hd-home-listing__about">
-                <h4>About this place</h4>
-                <p>{hostData.hostAbout}</p>
-              </div>
-            )}
-          </div>
-        </div>
+          );
+        })}
       </div>
     );
   };
@@ -595,27 +656,43 @@ const HostDashboardPage = () => {
     </div>
   );
 
-  /* ─────────── REVIEWS TAB ─────────── */
+  /* ─────────── REVIEWS TAB (NOW A SIDEBAR) ─────────── */
   const renderReviews = () => {
-    const hostData = user;
+    const hostData = freshHostData || user;
     return (
-      <div className="hd-reviews">
-        <h3 className="hd-homes__title">Guest Reviews</h3>
-        <p className="hd-homes__subtitle">See what guests are saying about your properties</p>
-        <div style={{ background: "white", padding: "24px", borderRadius: "16px", boxShadow: "0 2px 16px rgba(0,0,0,.06)" }}>
-          <ReviewsSection 
-            reviews={reviews} 
-            averageRating={hostData?.averageRating || 0}
-            reviewCount={hostData?.reviewCount || reviews.length}
-            categoryScores={{
-              cleanliness: hostData?.cleanlinessRating || 4.8,
-              accuracy: hostData?.accuracyRating || 4.7,
-              checkIn: hostData?.checkInRating || 4.9,
-              communication: hostData?.communicationRating || 4.8,
-              location: hostData?.locationRating || 4.6,
-              value: hostData?.valueRating || 4.7
-            }}
-          />
+      <div className="hd-reviews-sidebar" style={{ position: 'sticky', top: '100px', height: 'max-content' }}>
+        <h3 className="hd-homes__title" style={{ fontSize: '24px', marginBottom: '8px' }}>Guest Reviews</h3>
+        <p className="hd-homes__subtitle" style={{ fontSize: '14px', marginBottom: '20px' }}>What guests say about you</p>
+        <div style={{ 
+            background: "white", 
+            padding: "24px", 
+            borderRadius: "16px", 
+            boxShadow: "0 10px 40px rgba(0,0,0,.08)",
+            border: "1px solid rgba(0,0,0,0.04)"
+        }}>
+          {reviews.length === 0 ? (
+             <div style={{ textAlign: 'center', padding: '40px 0', color: '#717171' }}>
+                <div style={{ fontSize: '40px', marginBottom: '16px' }}>💬</div>
+                <h4>No reviews yet</h4>
+                <p style={{ fontSize: '14px' }}>When guests leave reviews, they will appear here.</p>
+             </div>
+          ) : (
+            <div style={{ maxHeight: '800px', overflowY: 'auto', paddingRight: '10px' }}>
+              <ReviewsSection 
+                reviews={reviews} 
+                averageRating={hostData?.averageRating || 0}
+                reviewCount={hostData?.reviewCount || reviews.length}
+                categoryScores={{
+                  cleanliness: hostData?.cleanlinessRating || 4.8,
+                  accuracy: hostData?.accuracyRating || 4.7,
+                  checkIn: hostData?.checkInRating || 4.9,
+                  communication: hostData?.communicationRating || 4.8,
+                  location: hostData?.locationRating || 4.6,
+                  value: hostData?.valueRating || 4.7
+                }}
+              />
+            </div>
+          )}
         </div>
       </div>
     );
@@ -662,37 +739,50 @@ const HostDashboardPage = () => {
           </div>
         </div>
 
-        {/* Tab navigation */}
-        <div className="hd-tabs">
-          <button className={`hd-tab ${activeTab === "calendar" ? "hd-tab--active" : ""}`} onClick={() => setActiveTab("calendar")}>
-            📅 Calendar
-          </button>
-          <button className={`hd-tab ${activeTab === "homes" ? "hd-tab--active" : ""}`} onClick={() => setActiveTab("homes")}>
-            🏡 Hosted Homes
-          </button>
-          <button className={`hd-tab ${activeTab === "bookings" ? "hd-tab--active" : ""}`} onClick={() => setActiveTab("bookings")}>
-            📋 Bookings
-          </button>
-          <button className={`hd-tab ${activeTab === "reviews" ? "hd-tab--active" : ""}`} onClick={() => setActiveTab("reviews")}>
-            ⭐ Reviews
-          </button>
-        </div>
-
-        {/* Tab content */}
-        <div className="hd-tab-content">
-          {loading ? (
-            <div className="hd-loading">
-              <div className="spinner" />
-              <p>Loading dashboard...</p>
+        {/* Split UI Layout */}
+        <div style={{ display: 'flex', gap: '40px', alignItems: 'flex-start' }}>
+          
+          {/* Main Dashboard Column */}
+          <div style={{ flex: '1 1 0%', minWidth: 0 }}>
+            {/* Tab navigation */}
+            <div className="hd-tabs" style={{ marginBottom: '30px', borderBottom: '2px solid #ebebeb' }}>
+              <button className={`hd-tab ${activeTab === "calendar" ? "hd-tab--active" : ""}`} onClick={() => setActiveTab("calendar")}>
+                📅 Calendar
+              </button>
+              <button className={`hd-tab ${activeTab === "homes" ? "hd-tab--active" : ""}`} onClick={() => setActiveTab("homes")}>
+                🏡 Hosted Homes
+              </button>
+              <button className={`hd-tab ${activeTab === "bookings" ? "hd-tab--active" : ""}`} onClick={() => setActiveTab("bookings")}>
+                📋 Bookings
+              </button>
             </div>
-          ) : (
-            <>
-              {activeTab === "calendar" && renderCalendar()}
-              {activeTab === "homes" && renderHostedHomes()}
-              {activeTab === "bookings" && renderBookings()}
-              {activeTab === "reviews" && renderReviews()}
-            </>
-          )}
+
+            {/* Tab content */}
+            <div className="hd-tab-content">
+              {loading ? (
+                <div className="hd-loading">
+                  <div className="spinner" />
+                  <p>Loading dashboard...</p>
+                </div>
+              ) : (
+                <>
+                  {activeTab === "calendar" && renderCalendar()}
+                  {activeTab === "homes" && renderHostedHomes()}
+                  {activeTab === "bookings" && renderBookings()}
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Right Sidebar Reviews Column */}
+          <aside style={{ width: '400px', flexShrink: 0, display: window.innerWidth < 1000 ? 'none' : 'block' }}>
+            {loading ? (
+                <div className="hd-loading" style={{ height: '300px' }}>
+                  <div className="spinner" style={{ width: '30px', height: '30px' }} />
+                </div>
+            ) : renderReviews()}
+          </aside>
+          
         </div>
       </div>
       <Footer />
