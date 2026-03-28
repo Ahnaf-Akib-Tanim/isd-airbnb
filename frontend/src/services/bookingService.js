@@ -44,6 +44,34 @@ export const checkinBooking = async (bookingId) => {
   return response.data;
 };
 
+export const hostConfirmCheckIn = async (bookingId, hostId) => {
+  const response = await api.put(`${BASE}/${bookingId}/host-checkin?hostId=${hostId}`);
+  return response.data;
+};
+
+export const hostConfirmCheckOut = async (bookingId, hostId) => {
+  const response = await api.put(`${BASE}/${bookingId}/host-checkout?hostId=${hostId}`);
+  return response.data;
+};
+
+export const hostCancelBooking = async (bookingId, cancellationReason) => {
+  const response = await api.put(`${BASE}/${bookingId}/cancel`, {
+    cancellationReason,
+    cancelledBy: "HOST"
+  });
+  return response.data;
+};
+
+export const processPayment = async (bookingId, paymentMethod = "CARD") => {
+  const response = await api.put(`${BASE}/${bookingId}/process-payment?paymentMethod=${paymentMethod}`, {});
+  return response.data;
+};
+
+export const approvePayment = async (bookingId) => {
+  const response = await api.put(`${BASE}/${bookingId}/approve-payment`);
+  return response.data;
+};
+
 export const completeBooking = async (bookingId) => {
   const response = await api.put(`${BASE}/${bookingId}/complete`);
   return response.data;
@@ -75,6 +103,11 @@ const bookingService = {
   confirmBooking,
   cancelBooking,
   checkinBooking,
+  hostConfirmCheckIn,
+  hostConfirmCheckOut,
+  hostCancelBooking,
+  processPayment,
+  approvePayment,
   completeBooking,
   refundBooking,
   issuePayout,

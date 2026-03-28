@@ -125,6 +125,19 @@ public class User {
     private Integer reviewCount;
     private Double responseRate;
 
+    // Review Score Breakdown (like Airbnb)
+    private Double cleanlinessRating;     // Out of 5.0
+    private Double accuracyRating;        // Out of 5.0
+    private Double checkInRating;         // Out of 5.0
+    private Double communicationRating;   // Out of 5.0
+    private Double locationRating;        // Out of 5.0
+    private Double valueRating;           // Out of 5.0
+
+    // Host stats
+    private Integer yearsHosting;
+    private String languagesSpoken;
+    private String responseTime;         // "Within an hour", "Within a few hours", etc.
+
     private LocalDateTime lastLoginAt;
 
     @CreatedDate

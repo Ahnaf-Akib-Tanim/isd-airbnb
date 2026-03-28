@@ -160,9 +160,9 @@ select {
 
 /* ─── Utility Classes ─── */
 .container {
-  max-width: 1300px; /* Reduced from default to minimize side spacing */
+  max-width: 1300px; /* Highly spacious wide canvas void */
   margin: 0 auto;
-  padding: 0 20px; /* Reduced padding */
+  padding: 0 40px; /* Streamlined edge padding */
 }
 
 .container-sm {
@@ -1127,9 +1127,8 @@ select {
 .home-suggest__grid--5-cols {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  gap: 12px;
-  max-width: 1200px;
-  margin: 0 auto;
+  gap: 20px;
+  width: 100%;
 }
 
 @media (max-width: 1200px) {

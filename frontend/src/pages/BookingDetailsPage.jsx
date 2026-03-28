@@ -1,14 +1,16 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { getBooking, cancelBooking } from "../services/bookingService";
+import { getBooking, cancelBooking, hostConfirmCheckIn, hostConfirmCheckOut, hostCancelBooking } from "../services/bookingService";
 import api from "../utils/axiosConfig";
 import { toast } from "react-toastify";
 import Footer from "../components/Footer";
+import BookingTimeline from "../components/BookingTimeline";
 import "./BookingDetailsPage.css";
 
 const STATUS_CONFIG = {
   PENDING:    { label: "Pending",    color: "#856404", bg: "#ffeeba", icon: "⏳", desc: "Waiting for admin approval" },
+  NOT_PAID_YET: { label: "Not Paid Yet", color: "#856404", bg: "#fff3cd", icon: "💳", desc: "Payment pending" },
   CONFIRMED:  { label: "Confirmed",  color: "#155724", bg: "#d4edda", icon: "✅", desc: "Booking has been confirmed" },
   CANCELLED:  { label: "Cancelled",  color: "#721c24", bg: "#f8d7da", icon: "❌", desc: "This booking was cancelled" },
   CHECKED_IN: { label: "Checked In", color: "#004085", bg: "#cce5ff", icon: "🏨", desc: "Guest has checked in" },
@@ -67,7 +69,46 @@ const BookingDetailsPage = () => {
       toast.success("Booking cancelled successfully");
       loadBookingDetails();
     } catch (err) {
-      toast.error("Failed to cancel booking");
+      toast.error(err.response?.data?.message || "Failed to cancel booking");
+    }
+  };
+
+  const handleHostCheckIn = async () => {
+    if (!window.confirm("Confirm guest check-in?")) return;
+    try {
+      await hostConfirmCheckIn(bookingId, user.userId);
+      toast.success("✅ Check-in confirmed!");
+      loadBookingDetails();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to confirm check-in");
+    }
+  };
+
+  const handleHostCheckOut = async () => {
+    if (!window.confirm("Confirm guest check-out?")) return;
+    try {
+      await hostConfirmCheckOut(bookingId, user.userId);
+      toast.success("👋 Check-out confirmed! Payout will be processed.");
+      loadBookingDetails();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to confirm check-out");
+    }
+  };
+
+  const handleHostCancel = async () => {
+    const reason = window.prompt("Reason for cancellation (required):");
+    if (reason === null) return;
+    if (!reason.trim()) {
+      toast.error("Cancellation reason is required");
+      return;
+    }
+    if (!window.confirm("Are you sure you want to cancel this booking? Guest will receive a refund based on policy.")) return;
+    try {
+      await hostCancelBooking(bookingId, reason.trim());
+      toast.success("Booking cancelled.");
+      loadBookingDetails();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Failed to cancel booking");
     }
   };
 
@@ -104,6 +145,19 @@ const BookingDetailsPage = () => {
   const nights = Math.max(1, (new Date(booking.checkOutDate) - new Date(booking.checkInDate)) / (1000 * 60 * 60 * 24));
   const isGuest = user?.userId === booking.guestId;
   const isHostUser = user?.userId === booking.hostId;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const checkInDate = new Date(booking.checkInDate);
+  checkInDate.setHours(0, 0, 0, 0);
+
+  const canHostCheckIn = isHostUser && booking.status === "CONFIRMED" && today >= checkInDate;
+  const canHostCheckOut = isHostUser && booking.status === "CHECKED_IN";
+  const canHostCancel = isHostUser && (booking.status === "PENDING" || booking.status === "CONFIRMED" || booking.status === "NOT_PAID_YET");
+  const canGuestCancel = isGuest && (booking.status === "PENDING" || booking.status === "CONFIRMED" || booking.status === "NOT_PAID_YET");
+  const canGuestPayNow = isGuest && ["NOT_PAID_YET", "PENDING", "CONFIRMED"].includes(booking.status) && (booking.paymentStatus === "PAY_LATER" || booking.paymentStatus === "PENDING");
+
+  const hasNoActions = !canHostCheckIn && !canHostCheckOut && !canHostCancel && !canGuestCancel && !canGuestPayNow;
 
   return (
     <div className="bd-page">
@@ -221,32 +275,50 @@ const BookingDetailsPage = () => {
               </section>
             )}
 
-            {/* Timeline */}
-            <section className="bd-section">
-              <h2 className="bd-section__title">Booking Timeline</h2>
-              <div className="bd-timeline">
-                <div className="bd-timeline__item bd-timeline__item--done">
-                  <div className="bd-timeline__dot" />
-                  <div className="bd-timeline__content">
-                    <span className="bd-timeline__label">Booking Created</span>
-                    <span className="bd-timeline__date">
-                      {booking.createdAt ? new Date(booking.createdAt).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" }) : "N/A"}
-                    </span>
-                  </div>
+            {/* Timeline - Replace old timeline with comprehensive component */}
+            {booking.history && booking.history.length > 0 && (
+              <BookingTimeline history={booking.history} booking={booking} />
+            )}
+
+            {/* Cancellation/Refund Info */}
+            {booking.cancellationReason && (
+              <section className="bd-section">
+                <h2 className="bd-section__title">Cancellation Details</h2>
+                <div className="bd-info-box bd-info-box--warning">
+                  <strong>Reason:</strong> {booking.cancellationReason}
+                  {booking.cancelledBy && (
+                    <p><strong>Cancelled by:</strong> {booking.cancelledBy}</p>
+                  )}
+                  {booking.refundAmount && (
+                    <p><strong>Refund Amount:</strong> ${booking.refundAmount}</p>
+                  )}
                 </div>
-                {booking.status !== "PENDING" && (
-                  <div className={`bd-timeline__item ${["CONFIRMED", "CHECKED_IN", "COMPLETED"].includes(booking.status) ? "bd-timeline__item--done" : "bd-timeline__item--cancelled"}`}>
-                    <div className="bd-timeline__dot" />
-                    <div className="bd-timeline__content">
-                      <span className="bd-timeline__label">{status.label}</span>
-                      <span className="bd-timeline__date">
-                        {booking.updatedAt ? new Date(booking.updatedAt).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" }) : "N/A"}
-                      </span>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </section>
+              </section>
+            )}
+
+            {/* Payout Info (for hosts) */}
+            {isHostUser && booking.status === "COMPLETED" && (
+              <section className="bd-section">
+                <h2 className="bd-section__title">Payout Information</h2>
+                <div className={`bd-info-box ${booking.payoutIssued ? "bd-info-box--success" : "bd-info-box--info"}`}>
+                  {booking.payoutIssued ? (
+                    <>
+                      <strong>✅ Payout Issued</strong>
+                      <p>Amount: ${booking.payoutAmount}</p>
+                      <p>Percentage: {booking.payoutPercentage}%</p>
+                      {booking.payoutIssuedAt && (
+                        <p>Issued: {new Date(booking.payoutIssuedAt).toLocaleString()}</p>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <strong>⏳ Payout Pending</strong>
+                      <p>Your payout will be processed by the admin soon.</p>
+                    </>
+                  )}
+                </div>
+              </section>
+            )}
           </div>
 
           {/* ── Right Column: Actions ── */}
@@ -254,22 +326,40 @@ const BookingDetailsPage = () => {
             <div className="bd-actions-card">
               <h3 className="bd-actions-card__title">Actions</h3>
 
-              {/* Cancel (for pending bookings) */}
-              {booking.status === "PENDING" && (isGuest || isHostUser) && (
-                <button className="bd-btn bd-btn--danger bd-btn--full" onClick={handleCancel}>
-                  ❌ Cancel Booking
+              {/* Action Buttons */}
+              
+              {canHostCheckIn && (
+                <button className="bd-btn bd-btn--primary bd-btn--full" onClick={handleHostCheckIn}>
+                  🏠 Confirm Guest Check-in
                 </button>
               )}
 
-              {/* Pay Now (for confirmed + pay_later) */}
-              {booking.status === "CONFIRMED" && booking.paymentStatus === "PAY_LATER" && isGuest && (
+              {canHostCheckOut && (
+                <button className="bd-btn bd-btn--primary bd-btn--full" onClick={handleHostCheckOut}>
+                  👋 Confirm Guest Check-out
+                </button>
+              )}
+
+              {canGuestPayNow && (
                 <button className="bd-btn bd-btn--primary bd-btn--full" onClick={handlePayNow}>
                   💳 Pay Now
                 </button>
               )}
 
+              {canGuestCancel && (
+                <button className="bd-btn bd-btn--danger bd-btn--full" onClick={handleCancel}>
+                  ❌ Cancel Booking
+                </button>
+              )}
+
+              {canHostCancel && (
+                <button className="bd-btn bd-btn--danger bd-btn--full" onClick={handleHostCancel}>
+                  ❌ Cancel Booking
+                </button>
+              )}
+
               {/* No actions available */}
-              {!["PENDING"].includes(booking.status) && !(booking.status === "CONFIRMED" && booking.paymentStatus === "PAY_LATER" && isGuest) && (
+              {hasNoActions && (
                 <p className="bd-actions-card__note">No actions available for this booking status.</p>
               )}
 
