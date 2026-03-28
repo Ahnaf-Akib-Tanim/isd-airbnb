@@ -42,6 +42,27 @@ public class MessageService {
         return messageRepository.save(msg);
     }
 
+    public Message reactToMessage(String userEmail, String messageId, String reaction) {
+        User user = userPersistenceService.findByEmail(userEmail)
+            .orElseThrow(() -> new RuntimeException("User not found"));
+        
+        Message message = messageRepository.findById(messageId)
+            .orElseThrow(() -> new RuntimeException("Message not found"));
+            
+        if (message.getReactions() == null) {
+            message.setReactions(new HashMap<>());
+        }
+        
+        // Remove reaction if the same reaction is clicked to toggle it off
+        if (reaction.equals(message.getReactions().get(user.getUserId()))) {
+            message.getReactions().remove(user.getUserId());
+        } else {
+            message.getReactions().put(user.getUserId(), reaction);
+        }
+        
+        return messageRepository.save(message);
+    }
+
     public List<Message> getMessageHistory(String userEmail, String otherUserId) {
         User user = userPersistenceService.findByEmail(userEmail)
             .orElseThrow(() -> new RuntimeException("User not found"));

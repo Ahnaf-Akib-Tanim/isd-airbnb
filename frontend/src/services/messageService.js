@@ -15,10 +15,16 @@ const getMessageHistory = async (otherUserId) => {
   return response.data;
 };
 
+const reactToMessage = async (messageId, reaction) => {
+  const response = await api.post(`/api/messages/${messageId}/react?reaction=${reaction}`);
+  return response.data;
+};
+
 const messageService = {
   sendMessage,
   getConversations,
   getMessageHistory,
+  reactToMessage,
 };
 
 export default messageService;
