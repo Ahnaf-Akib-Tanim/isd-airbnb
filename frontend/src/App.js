@@ -19,6 +19,7 @@ import CustomerTripsPage from "./pages/CustomerTripsPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import HomePage from "./pages/HomePage";
 import HostDashboardPage from "./pages/HostDashboardPage";
+import InboxPage from "./pages/InboxPage";
 import ListingDetailsPage from "./pages/ListingDetailsPage";
 import LoginPage from "./pages/LoginPage";
 import PaymentPage from "./pages/PaymentPage";
@@ -27,13 +28,15 @@ import RegisterPage from "./pages/RegisterPage";
 import ReservationPage from "./pages/ReservationPage";
 import SearchPage from "./pages/SearchPage";
 import VerifyEmailPage from "./pages/VerifyEmailPage";
+import WishlistsPage from "./pages/WishlistsPage";
+
+import { WebSocketProvider } from "./context/WebSocketContext";
 
 function App() {
   return (
     <ErrorBoundary>
       <AuthProvider>
-        {/* Temporarily disable WebSocket to fix startup issues */}
-        {/* <WebSocketProvider> */}
+        <WebSocketProvider>
           <Router
             future={{
               v7_startTransition: true,
@@ -101,6 +104,22 @@ function App() {
                       element={
                         <ProtectedRoute>
                           <ProfilePage />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/wishlists"
+                      element={
+                        <ProtectedRoute>
+                          <WishlistsPage />
+                        </ProtectedRoute>
+                      }
+                    />
+                    <Route
+                      path="/inbox"
+                      element={
+                        <ProtectedRoute>
+                          <InboxPage />
                         </ProtectedRoute>
                       }
                     />
@@ -173,7 +192,7 @@ function App() {
               theme="light"
             />
           </Router>
-        {/* </WebSocketProvider> */}
+        </WebSocketProvider>
       </AuthProvider>
     </ErrorBoundary>
   );

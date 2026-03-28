@@ -3,13 +3,11 @@ import { toast } from "react-toastify";
 import Footer from "../components/Footer";
 import {
   cancelBooking,
-  checkinBooking,
-  completeBooking,
   confirmBooking,
   getAllBookings,
   issuePayout,
   refundBooking,
-  updatePaymentStatus,
+  approvePayment,
 } from "../services/bookingService";
 import api from "../utils/axiosConfig";
 import "./AdminBookingsPage.css";
@@ -122,6 +120,25 @@ const AdminBookingsPage = () => {
 
   const getAvailableActions = (booking) => {
     const actions = [];
+    
+    // Payment approval action (if payment completed but not yet approved)
+    if (booking.paymentStatus === "COMPLETED" && booking.status === "NOT_PAID_YET") {
+      actions.push({
+        label: "Approve Payment ✅",
+        fn: async () => {
+          if (!window.confirm("Approve this payment and confirm the booking?")) return;
+          try {
+            await approvePayment(booking.id);
+            toast.success("Payment approved! Booking confirmed.");
+            fetchBookings();
+          } catch (err) {
+            toast.error("Failed to approve payment");
+          }
+        },
+        className: "admin-btn--approve",
+      });
+    }
+    
     switch (booking.status) {
       case "PENDING":
         actions.push({
@@ -135,12 +152,16 @@ const AdminBookingsPage = () => {
           className: "admin-btn--reject",
         });
         break;
-      case "CONFIRMED":
+      case "NOT_PAID_YET":
+        // Guest needs to pay - no admin action needed unless cancelling
         actions.push({
-          label: "Check In",
-          fn: () => handleAction(checkinBooking, booking.id, "check in"),
-          className: "admin-btn--checkin",
+          label: "Cancel",
+          fn: () => handleAction(cancelBooking, booking.id, "cancel"),
+          className: "admin-btn--reject",
         });
+        break;
+      case "CONFIRMED":
+        // Host will handle check-in, but admin can cancel if needed
         actions.push({
           label: "Cancel",
           fn: () => handleAction(cancelBooking, booking.id, "cancel"),
@@ -148,11 +169,7 @@ const AdminBookingsPage = () => {
         });
         break;
       case "CHECKED_IN":
-        actions.push({
-          label: "Complete",
-          fn: () => handleAction(completeBooking, booking.id, "complete"),
-          className: "admin-btn--complete",
-        });
+        // Host will handle check-out
         break;
       case "CANCELLED":
         if (
@@ -222,25 +239,6 @@ const AdminBookingsPage = () => {
         break;
       default:
         break;
-    }
-    // For PAY_LATER bookings that are confirmed, add approve payment
-    if (
-      booking.paymentStatus === "PAY_LATER" &&
-      ["CONFIRMED", "PENDING"].includes(booking.status)
-    ) {
-      actions.push({
-        label: "Approve Pay Later",
-        fn: async () => {
-          try {
-            await updatePaymentStatus(booking.id, "COMPLETED");
-            toast.success("Payment approved for pay-later booking!");
-            fetchBookings();
-          } catch (err) {
-            toast.error("Failed to approve payment");
-          }
-        },
-        className: "admin-btn--approve",
-      });
     }
     return actions;
   };
@@ -319,7 +317,7 @@ const AdminBookingsPage = () => {
                 <tr>
                   <th>Booking ID</th>
                   <th>Guest</th>
-                  <th>Host</th>
+                  <th>Host / Property</th>
                   <th>Dates</th>
                   <th>Total</th>
                   <th>Status</th>
@@ -358,6 +356,8 @@ const AdminBookingsPage = () => {
                             {host.firstName} {host.lastName}
                           </strong>
                           <small>{host.hostDisplayName || ""}</small>
+                          {booking.propertyName && <small style={{color:'#6b7280'}}>🏡 {booking.propertyName}</small>}
+                          {booking.cancellationPolicy && <small style={{color:'#9ca3af'}}>{booking.cancellationPolicy} policy</small>}
                         </div>
                       </td>
                       <td>
@@ -406,7 +406,11 @@ const AdminBookingsPage = () => {
                               ? booking.cancellationReason.substring(0, 40) +
                                 "..."
                               : booking.cancellationReason}
+                            {booking.cancelledBy && <span style={{color:'#9ca3af', marginLeft:4}}>(by {booking.cancelledBy})</span>}
                           </div>
+                        )}
+                        {booking.refundAmount > 0 && (
+                          <div style={{fontSize:12, color:'#059669', marginTop:2}}>Refund: ${booking.refundAmount}</div>
                         )}
                       </td>
                       <td>

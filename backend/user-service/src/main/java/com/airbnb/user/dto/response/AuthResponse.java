@@ -24,5 +24,6 @@ public class AuthResponse {
     private VerificationStatus verificationStatus;
     private boolean canBook;
     private boolean canHost;
+    private java.util.List<String> favoriteHostIds;
     private String message;
 }
