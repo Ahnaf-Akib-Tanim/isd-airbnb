@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { getBooking, updatePaymentStatus } from "../services/bookingService";
+import { getBooking, processPayment } from "../services/bookingService";
 import api from "../utils/axiosConfig";
 import { toast } from "react-toastify";
 import Footer from "../components/Footer";
@@ -72,11 +72,11 @@ const PaymentPage = () => {
     }
     setProcessing(true);
     try {
-      await updatePaymentStatus(bookingId, "COMPLETED");
-      toast.success("🎉 Payment Successful! Your booking is confirmed.");
-      setTimeout(() => navigate("/my-trips"), 1500);
+      await processPayment(bookingId, "CARD");
+      toast.success("🎉 Payment Successful! Awaiting admin approval for final confirmation.");
+      setTimeout(() => navigate("/my-trips"), 2000);
     } catch (err) {
-      toast.error("Payment failed. Please try again.");
+      toast.error(err.response?.data?.message || "Payment failed. Please try again.");
     } finally {
       setProcessing(false);
     }
@@ -128,7 +128,9 @@ const PaymentPage = () => {
           <div className="pp-form-section">
             <h1 className="pp-title">Complete your payment</h1>
             <p className="pp-subtitle">
-              You chose to pay later — complete payment now to secure your booking.
+              {booking?.status === "CONFIRMED"
+                ? "Your booking is confirmed — complete payment now to finalize your reservation."
+                : "You chose to pay later — complete payment now to secure your booking."}
             </p>
 
             <div className="pp-card-form">
