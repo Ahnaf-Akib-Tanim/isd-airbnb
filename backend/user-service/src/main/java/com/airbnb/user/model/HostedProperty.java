@@ -57,12 +57,12 @@ public class HostedProperty {
     // Property Review Scores
     private Double averageRating;
     private Integer reviewCount;
-    private Double cleanlinessScore;
-    private Double accuracyScore;
-    private Double checkInScore;
-    private Double communicationScore;
-    private Double locationScore;
-    private Double valueScore;
+    private Double cleanlinessRating;
+    private Double accuracyRating;
+    private Double checkInRating;
+    private Double communicationRating;
+    private Double locationRating;
+    private Double valueRating;
 
     // What this place offers (expanded amenities)
     @Builder.Default

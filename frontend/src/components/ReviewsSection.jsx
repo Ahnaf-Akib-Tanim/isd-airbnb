@@ -1,9 +1,36 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useAuth } from "../context/AuthContext";
+import { markHelpful } from "../services/reviewService";
+import { toast } from "react-toastify";
 import "./ReviewsSection.css";
 
 const ReviewsSection = ({ reviews, averageRating, reviewCount, categoryScores }) => {
   const [showAll, setShowAll] = useState(false);
-  const displayedReviews = showAll ? reviews : reviews.slice(0, 6);
+  const [localReviews, setLocalReviews] = useState([]);
+  const { user } = useAuth();
+  
+  useEffect(() => {
+    setLocalReviews(reviews || []);
+  }, [reviews]);
+
+  const displayedReviews = showAll ? localReviews : localReviews.slice(0, 6);
+
+  const handleHelpfulClick = async (reviewId) => {
+    if (!user) {
+      toast.info("Please log in to mark reviews as helpful");
+      return;
+    }
+
+    try {
+      const response = await markHelpful(reviewId, user.userId);
+      setLocalReviews((prev) =>
+        prev.map((r) => (r.id === reviewId ? response : r))
+      );
+    } catch (error) {
+      console.error("Failed to mark review as helpful:", error);
+      toast.error("Failed to update helpful status");
+    }
+  };
 
   const renderStars = (rating) => {
     const fullStars = Math.floor(rating);
@@ -135,7 +162,9 @@ const ReviewsSection = ({ reviews, averageRating, reviewCount, categoryScores })
 
       {/* Individual Reviews */}
       <div className="reviews-list">
-        {displayedReviews.map((review) => (
+        {displayedReviews.map((review) => {
+          const hasMarkedHelpful = user && review.helpfulByUserIds?.includes(user.userId);
+          return (
           <div key={review.id} className="review-card">
             <div className="review-header">
               <div className="reviewer-info">
@@ -181,7 +210,14 @@ const ReviewsSection = ({ reviews, averageRating, reviewCount, categoryScores })
 
             {/* Helpful Button */}
             <div className="review-footer">
-              <button className="helpful-btn">
+              <button 
+                className={`helpful-btn ${hasMarkedHelpful ? "active" : ""}`}
+                onClick={() => handleHelpfulClick(review.id)}
+                style={{ 
+                  fontWeight: hasMarkedHelpful ? "bold" : "normal",
+                  color: hasMarkedHelpful ? "#222222" : "#717171" 
+                }}
+              >
                 👍 Helpful ({review.helpfulCount || 0})
               </button>
               {review.isGuestFavorite && (
@@ -189,7 +225,7 @@ const ReviewsSection = ({ reviews, averageRating, reviewCount, categoryScores })
               )}
             </div>
           </div>
-        ))}
+        )})}
       </div>
 
       {/* Show More Button */}

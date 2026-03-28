@@ -21,6 +21,7 @@ const toStoredUser = (authResponse) => ({
   verificationStatus: authResponse.verificationStatus || "NOT_REQUESTED",
   canBook: Boolean(authResponse.canBook),
   canHost: Boolean(authResponse.canHost),
+  favoriteHostIds: authResponse.favoriteHostIds || [],
 });
 
 export const useAuth = () => {

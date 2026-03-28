@@ -14,6 +14,13 @@ spring:
           filters:
             - StripPrefix=0
 
+        - id: message-service
+          uri: http://user-service:8081
+          predicates:
+            - Path=/api/messages/**
+          filters:
+            - StripPrefix=0
+
         - id: booking-service
           uri: http://booking-service:8082
           predicates:
