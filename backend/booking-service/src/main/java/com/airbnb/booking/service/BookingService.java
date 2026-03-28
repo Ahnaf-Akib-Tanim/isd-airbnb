@@ -3,6 +3,7 @@ package com.airbnb.booking.service;
 import com.airbnb.booking.client.NotificationClient;
 import com.airbnb.booking.dto.CreateNotificationRequest;
 import com.airbnb.booking.model.Booking;
+import com.airbnb.booking.model.BookingHistory;
 import com.airbnb.booking.model.BookingStatus;
 import com.airbnb.booking.model.PaymentStatus;
 import com.airbnb.booking.repository.BookingRepository;
@@ -21,6 +22,22 @@ public class BookingService {
     private final BookingRepository bookingRepository;
     private final NotificationClient notificationClient;
     private final WebSocketService webSocketService;
+    
+    // Helper method to add history entries
+    private void addHistoryEntry(Booking booking, BookingStatus previousStatus, BookingStatus newStatus,
+                                 String changedBy, String changedByRole, String action, String notes) {
+        BookingHistory history = BookingHistory.builder()
+            .timestamp(LocalDateTime.now())
+            .previousStatus(previousStatus)
+            .newStatus(newStatus)
+            .changedBy(changedBy)
+            .changedByRole(changedByRole)
+            .action(action)
+            .notes(notes)
+            .paymentStatus(booking.getPaymentStatus())
+            .build();
+        booking.getHistory().add(history);
+    }
 
     public Booking createBooking(Booking booking) {
         // Check for overlapping bookings
@@ -42,6 +59,10 @@ public class BookingService {
         if (booking.getPaymentStatus() == PaymentStatus.PAY_LATER) {
             booking.setStatus(BookingStatus.NOT_PAID_YET);
         }
+        
+        // Add history entry
+        addHistoryEntry(booking, null, booking.getStatus(), booking.getGuestId(), "GUEST", 
+            "Booking created", "Guest initiated booking request");
         
         Booking saved = bookingRepository.save(booking);
 
@@ -115,15 +136,33 @@ public class BookingService {
     public Booking processPayment(String id, String paymentMethod) {
         Booking booking = getBooking(id);
         
-        // Verify booking is in NOT_PAID_YET status
-        if (booking.getStatus() != BookingStatus.NOT_PAID_YET) {
-            throw new RuntimeException("Payment can only be processed for bookings with 'Pay Later' option");
+        // Verify booking is in a valid status for payment
+        boolean canPay = booking.getStatus() == BookingStatus.NOT_PAID_YET || 
+            (booking.getStatus() == BookingStatus.PENDING && (booking.getPaymentStatus() == PaymentStatus.PAY_LATER || booking.getPaymentStatus() == PaymentStatus.PENDING)) ||
+            (booking.getStatus() == BookingStatus.CONFIRMED && (booking.getPaymentStatus() == PaymentStatus.PAY_LATER || booking.getPaymentStatus() == PaymentStatus.PENDING));
+        
+        if (!canPay) {
+            throw new RuntimeException("Payment can only be processed for bookings with pending payment");
         }
+        
+        BookingStatus previousStatus = booking.getStatus();
         
         // Update payment status
         booking.setPaymentStatus(PaymentStatus.COMPLETED);
-        booking.setStatus(BookingStatus.CONFIRMED);
+        booking.setPaymentMethod(paymentMethod);
+        booking.setPaymentCompletedAt(LocalDateTime.now());
         booking.setUpdatedAt(LocalDateTime.now());
+        
+        // Auto-confirm the booking if it was NOT_PAID_YET
+        if (previousStatus == BookingStatus.NOT_PAID_YET) {
+            booking.setStatus(BookingStatus.CONFIRMED);
+            booking.setPaymentApprovedAt(LocalDateTime.now());
+        }
+        
+        // Add history entry for payment completion
+        addHistoryEntry(booking, previousStatus, booking.getStatus(), booking.getGuestId(), "GUEST",
+            "Payment completed", "Payment method: " + paymentMethod + " | Amount: $" + booking.getTotalPrice());
+        
         Booking saved = bookingRepository.save(booking);
 
         // Notify Guest
@@ -163,14 +202,14 @@ public class BookingService {
         notificationClient.sendNotification(
             CreateNotificationRequest.builder()
                 .recipientRole("ADMIN")
-                .title("Payment Processed - Approval Needed")
+                .title("Payment Processed ✅")
                 .message(
                     "Guest " + booking.getGuestId() +
                     " has paid $" + booking.getTotalPrice() +
                     " for booking #" + booking.getId().substring(0, 8) +
-                    ". Please approve the payment to finalize confirmation."
+                    ". Payment confirmed and booking status updated."
                 )
-                .type("ADMIN_PAYMENT_APPROVAL")
+                .type("ADMIN_PAYMENT_NOTIFICATION")
                 .actionTargetUserId(booking.getId())
                 .status("UNREAD")
                 .build()
@@ -187,9 +226,17 @@ public class BookingService {
             throw new RuntimeException("Payment must be completed before approval");
         }
         
-        // Update status to confirmed (it should already be confirmed, but ensure consistency)
+        BookingStatus previousStatus = booking.getStatus();
+        
+        // Update status to confirmed
         booking.setStatus(BookingStatus.CONFIRMED);
+        booking.setPaymentApprovedAt(LocalDateTime.now());
         booking.setUpdatedAt(LocalDateTime.now());
+        
+        // Add history entry for payment approval
+        addHistoryEntry(booking, previousStatus, BookingStatus.CONFIRMED, "ADMIN", "ADMIN",
+            "Payment approved", "Admin approved payment of $" + booking.getTotalPrice());
+        
         Booking saved = bookingRepository.save(booking);
 
         // Notify Guest
@@ -245,8 +292,19 @@ public class BookingService {
 
     public Booking confirmBooking(String id) {
         Booking booking = getBooking(id);
-        booking.setStatus(BookingStatus.CONFIRMED);
+        BookingStatus previousStatus = booking.getStatus();
+        
+        BookingStatus newStatus = booking.getPaymentStatus() == PaymentStatus.PAY_LATER 
+            ? BookingStatus.NOT_PAID_YET 
+            : BookingStatus.CONFIRMED;
+            
+        booking.setStatus(newStatus);
         booking.setUpdatedAt(LocalDateTime.now());
+        
+        // Add history entry for admin confirmation
+        addHistoryEntry(booking, previousStatus, newStatus, "ADMIN", "ADMIN",
+            "Booking confirmed by admin", "Admin approved the booking request");
+        
         Booking saved = bookingRepository.save(booking);
 
         // Send real-time WebSocket notifications
@@ -307,7 +365,15 @@ public class BookingService {
             throw new RuntimeException("Booking must be confirmed before check-in");
         }
         
+        // Verify it's the check-in date
+        LocalDate today = LocalDate.now();
+        if (today.isBefore(booking.getCheckInDate())) {
+            throw new RuntimeException("Check-in can only be confirmed on or after the check-in date");
+        }
+        
         booking.setStatus(BookingStatus.CHECKED_IN);
+        booking.setActualCheckInTime(LocalDateTime.now());
+        booking.setCheckInConfirmedBy(hostId);
         booking.setUpdatedAt(LocalDateTime.now());
         Booking saved = bookingRepository.save(booking);
 
@@ -364,7 +430,14 @@ public class BookingService {
         }
         
         booking.setStatus(BookingStatus.COMPLETED);
+        booking.setActualCheckOutTime(LocalDateTime.now());
+        booking.setCheckOutConfirmedBy(hostId);
         booking.setUpdatedAt(LocalDateTime.now());
+        
+        // Add history entry for check-out
+        addHistoryEntry(booking, BookingStatus.CHECKED_IN, BookingStatus.COMPLETED, hostId, "HOST",
+            "Check-out confirmed", "Host confirmed guest check-out at " + LocalDateTime.now());
+        
         Booking saved = bookingRepository.save(booking);
 
         // Notify Guest
@@ -391,7 +464,11 @@ public class BookingService {
                     "Booking #" + booking.getId().substring(0, 8) +
                     " for " + booking.getPropertyName() +
                     " is completed. Host " + booking.getHostId() +
-                    " is ready for payout. Total: $" + booking.getTotalPrice()
+                    " is ready for payout. Total: $" + booking.getTotalPrice() +
+                    " (Host payout: $" + (booking.getTotalPrice() != null ? 
+                        booking.getTotalPrice().multiply(BigDecimal.valueOf(
+                            booking.getPayoutPercentage() != null ? booking.getPayoutPercentage() / 100 : 0.8
+                        )) : "0") + ")"
                 )
                 .type("ADMIN_PAYOUT_REQUEST")
                 .actionTargetUserId(booking.getId())
@@ -404,7 +481,11 @@ public class BookingService {
 
     public Booking cancelBooking(String id, String cancellationReason, String cancelledBy) {
         Booking booking = getBooking(id);
+        BookingStatus previousStatus = booking.getStatus();
+        
         booking.setStatus(BookingStatus.CANCELLED);
+        booking.setCancelledBy(cancelledBy);
+        booking.setCancelledAt(LocalDateTime.now());
         if (cancellationReason != null && !cancellationReason.isBlank()) {
             booking.setCancellationReason(cancellationReason);
         }
@@ -418,6 +499,15 @@ public class BookingService {
         if (refundAmount.compareTo(BigDecimal.ZERO) > 0) {
             booking.setPaymentStatus(PaymentStatus.REFUNDED);
         }
+        
+        // Add history entry for cancellation
+        String changedByRole = "HOST".equals(cancelledBy) ? "HOST" : "GUEST";
+        String changedById = "HOST".equals(cancelledBy) ? booking.getHostId() : booking.getGuestId();
+        String notes = "Cancelled by " + cancelledBy + " | Reason: " + 
+            (cancellationReason != null ? cancellationReason : "No reason provided") + 
+            " | Refund: $" + refundAmount;
+        addHistoryEntry(booking, previousStatus, BookingStatus.CANCELLED, changedById, changedByRole,
+            "Booking cancelled", notes);
         
         Booking saved = bookingRepository.save(booking);
 
@@ -511,8 +601,15 @@ public class BookingService {
 
     public Booking updateBookingStatus(String id, BookingStatus status) {
         Booking booking = getBooking(id);
+        BookingStatus previousStatus = booking.getStatus();
+        
         booking.setStatus(status);
         booking.setUpdatedAt(LocalDateTime.now());
+        
+        // Add history entry for status update
+        addHistoryEntry(booking, previousStatus, status, "ADMIN", "ADMIN",
+            "Status updated", "Admin changed status from " + previousStatus + " to " + status);
+        
         Booking saved = bookingRepository.save(booking);
 
         String statusLabel = status.name().replace("_", " ");
@@ -554,6 +651,7 @@ public class BookingService {
 
     public Booking refundBooking(String id, String reason) {
         Booking booking = getBooking(id);
+        BookingStatus previousStatus = booking.getStatus();
 
         // Calculate refund based on cancellation policy
         BigDecimal refundAmount = calculateRefundAmount(booking);
@@ -564,6 +662,12 @@ public class BookingService {
             booking.setCancellationReason(reason);
         }
         booking.setUpdatedAt(LocalDateTime.now());
+        
+        // Add history entry for refund
+        addHistoryEntry(booking, previousStatus, BookingStatus.REFUNDED, "ADMIN", "ADMIN",
+            "Refund processed", "Admin processed refund of $" + refundAmount + 
+            (reason != null ? " | Reason: " + reason : ""));
+        
         Booking saved = bookingRepository.save(booking);
 
         // Notify Guest
@@ -607,6 +711,11 @@ public class BookingService {
         if (booking.isPayoutIssued()) {
             throw new RuntimeException("Payout already issued for this booking");
         }
+        
+        // Verify booking is completed
+        if (booking.getStatus() != BookingStatus.COMPLETED) {
+            throw new RuntimeException("Payout can only be issued for completed bookings");
+        }
 
         double payoutPct = booking.getPayoutPercentage() != null ? booking.getPayoutPercentage() : 80.0;
         BigDecimal totalPrice = booking.getTotalPrice() != null ? booking.getTotalPrice() : BigDecimal.ZERO;
@@ -616,7 +725,14 @@ public class BookingService {
         booking.setPayoutIssued(true);
         booking.setPayoutAmount(payoutAmount);
         booking.setPayoutPercentage(payoutPct);
+        booking.setPayoutIssuedAt(LocalDateTime.now());
         booking.setUpdatedAt(LocalDateTime.now());
+        
+        // Add history entry for payout
+        addHistoryEntry(booking, booking.getStatus(), booking.getStatus(), "ADMIN", "ADMIN",
+            "Payout issued", "Admin issued payout of $" + payoutAmount + 
+            " (" + (int)payoutPct + "% of $" + totalPrice + ") to host");
+        
         Booking saved = bookingRepository.save(booking);
 
         // Notify Host of payout
