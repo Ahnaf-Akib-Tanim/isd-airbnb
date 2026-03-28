@@ -26,6 +26,10 @@ jwt:
 app:
   frontend-base-url: ${FRONTEND_BASE_URL:http://localhost:3000}
 
+supabase:
+  url: ${SUPABASE_URL:https://urdpkrwczdeftqjmzyep.supabase.co}
+  key: ${SUPABASE_KEY:}
+
 services:
   notification-service:
     url: ${NOTIFICATION_SERVICE_URL:http://localhost:8087}

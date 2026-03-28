@@ -66,6 +66,13 @@ public class UserProfileResponse {
     private Integer reviewCount;
     private Double responseRate;
 
+    private Double cleanlinessRating;
+    private Double accuracyRating;
+    private Double checkInRating;
+    private Double communicationRating;
+    private Double locationRating;
+    private Double valueRating;
+
     private LocalDateTime lastLoginAt;
 
     private LocalDateTime createdAt;

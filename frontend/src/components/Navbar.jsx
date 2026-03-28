@@ -265,18 +265,40 @@ const Navbar = () => {
                     )}
 
                     {user?.role !== "ADMIN" && (
-                      <button
-                        className="navbar__dropdown-item"
-                        onClick={() => handleMenuClick("/my-trips")}
-                      >
-                        <svg viewBox="0 0 32 32" aria-hidden="true">
-                          <path
-                            d="M26 2H6a2 2 0 0 0-2 2v24a2 2 0 0 0 2 2h20a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2zm-1 25H7V5h18v22zM11 11h10v2H11zm0 5h10v2H11zm0 5h6v2h-6z"
-                            fill="currentColor"
-                          />
-                        </svg>
-                        My Trips
-                      </button>
+                      <>
+                        <button
+                          className="navbar__dropdown-item"
+                          onClick={() => handleMenuClick("/wishlists")}
+                        >
+                          <svg viewBox="0 0 32 32" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+                            <path d="m16 28c7-4.733 14-10 14-17 0-1.792-.683-3.583-2.05-4.95-1.367-1.366-3.158-2.05-4.95-2.05-1.791 0-3.583.684-4.949 2.05l-2.051 2.051-2.05-2.051c-1.367-1.366-3.158-2.05-4.95-2.05-1.791 0-3.583.684-4.949 2.05-1.367 1.367-2.051 3.158-2.051 4.95 0 7 7 12.267 14 17z" fill="currentColor"></path>
+                          </svg>
+                          Wishlists
+                        </button>
+                        <button
+                          className="navbar__dropdown-item"
+                          onClick={() => handleMenuClick("/inbox")}
+                        >
+                          <svg viewBox="0 0 32 32" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M26 2H6a4 4 0 0 0-4 4v16a4 4 0 0 0 4 4h6l4 4 4-4h6a4 4 0 0 0 4-4V6a4 4 0 0 0-4-4zM8 12h16v2H8zm0-4h16v2H8zm0 8h10v2H8z" fill="currentColor"></path>
+                          </svg>
+                          Inbox
+                        </button>
+                        {user?.role !== "HOST" && (
+                          <button
+                            className="navbar__dropdown-item"
+                            onClick={() => handleMenuClick("/my-trips")}
+                          >
+                            <svg viewBox="0 0 32 32" aria-hidden="true">
+                              <path
+                                d="M26 2H6a2 2 0 0 0-2 2v24a2 2 0 0 0 2 2h20a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2zm-1 25H7V5h18v22zM11 11h10v2H11zm0 5h10v2H11zm0 5h6v2h-6z"
+                                fill="currentColor"
+                              />
+                            </svg>
+                            My Trips
+                          </button>
+                        )}
+                      </>
                     )}
 
                     <div className="navbar__dropdown-divider" />
