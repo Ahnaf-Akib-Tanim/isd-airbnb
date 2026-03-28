@@ -7,6 +7,8 @@ import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
 
 @Document(collection = "messages")
 @Data
@@ -31,4 +33,7 @@ public class Message {
     private String content;
     private LocalDateTime timestamp;
     private boolean read;
+    
+    @Builder.Default
+    private Map<String, String> reactions = new HashMap<>();
 }
