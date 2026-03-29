@@ -6,7 +6,7 @@ spring:
       uri: ${SPRING_DATA_MONGODB_URI:mongodb://localhost:27017/airbnb_reviews}
 
 server:
-  port: 8089
+  port: ${SERVER_PORT:8089}
 
 eureka:
   client:

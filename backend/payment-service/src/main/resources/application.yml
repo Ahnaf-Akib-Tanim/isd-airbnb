@@ -1,5 +1,5 @@
 server:
-  port: 8083
+  port: ${SERVER_PORT:8083}
 
 spring:
   application:
@@ -20,7 +20,7 @@ spring:
       on-profile: default
 
 server:
-  port: 8083
+  port: ${SERVER_PORT:8083}
 
 management:
   endpoints:

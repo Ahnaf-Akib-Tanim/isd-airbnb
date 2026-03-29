@@ -253,7 +253,7 @@ isd-airbnb/
 ## 👥 Team
 
 BUET — CSE 326 Information System Design
-Project: **ISD Airbnb**
+Project: **Airbnb**
 
 ---
 

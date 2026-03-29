@@ -14,9 +14,8 @@ public class CorsConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         CorsConfiguration config = new CorsConfiguration();
         
-        // Allow specific origins
-        config.addAllowedOrigin("http://localhost:3000");
-        config.addAllowedOrigin("http://127.0.0.1:3000");
+        // Allow all origins (Gateway handles restrictions)
+        config.addAllowedOriginPattern("*");
         
         // Allow HTTP methods
         config.addAllowedMethod("GET");
