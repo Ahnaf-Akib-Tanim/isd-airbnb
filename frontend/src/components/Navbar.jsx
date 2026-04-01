@@ -50,13 +50,25 @@ const Navbar = () => {
         {/* ── Logo ── */}
         <Link to="/" className="navbar__logo">
           <svg
-            viewBox="0 0 32 32"
+            viewBox="0 0 40 32"
             className="navbar__logo-icon"
             aria-hidden="true"
           >
             <path
-              d="M16 1c2.008 0 3.463.963 4.751 3.269l.533 1.025c1.954 3.83 6.114 12.54 7.1 14.836l.145.353c.667 1.591.91 2.472.96 3.396l.01.415.001.228c0 4.062-2.877 6.478-6.357 6.478-2.224 0-4.556-1.258-6.709-3.386l-.257-.26-.172-.179h-.011l-.176.185c-2.044 2.1-4.267 3.44-6.414 3.59l-.26.01-.221.003c-3.48 0-6.357-2.416-6.357-6.478l.001-.228.01-.415c.05-.924.293-1.805.96-3.396l.145-.353c.985-2.295 5.145-11.005 7.1-14.836l.533-1.025C12.537 1.963 13.992 1 16 1zm0 2c-1.239 0-2.053.539-2.987 2.21l-.523 1.008c-1.926 3.776-6.06 12.43-7.031 14.692l-.345.836c-.427 1.071-.573 1.655-.605 2.24l-.009.33-.001.208c0 2.826 1.957 4.478 4.357 4.478 1.824 0 3.891-1.211 5.871-3.208l.385-.403.516-.572.56.619c2.133 2.347 4.213 3.564 6.07 3.564 2.4 0 4.357-1.652 4.357-4.478l-.001-.208-.009-.33c-.032-.585-.178-1.169-.605-2.24l-.345-.836c-.972-2.262-5.105-10.916-7.031-14.692l-.523-1.008C18.053 3.539 17.239 3 16 3z"
-              fill="currentColor"
+              d="M5 28 20 4l15 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="3.25"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <path
+              d="M13 28l7-11 7 11"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="3.25"
+              strokeLinecap="round"
+              strokeLinejoin="round"
             />
           </svg>
           <span className="navbar__logo-text">airbnb</span>
@@ -77,7 +89,10 @@ const Navbar = () => {
         ) : (
           /* ── Search pill (inner pages) ── */
           <div className="navbar__search">
-            <button className="navbar__search-bar" onClick={() => navigate("/search")}>
+            <button
+              className="navbar__search-bar"
+              onClick={() => navigate("/search")}
+            >
               <span className="navbar__search-item">Anywhere</span>
               <span className="navbar__search-divider" />
               <span className="navbar__search-item">Any week</span>
@@ -235,9 +250,7 @@ const Navbar = () => {
                     {user?.role === "ADMIN" && (
                       <button
                         className="navbar__dropdown-item"
-                        onClick={() =>
-                          handleMenuClick("/admin/bookings")
-                        }
+                        onClick={() => handleMenuClick("/admin/bookings")}
                       >
                         <svg viewBox="0 0 32 32" aria-hidden="true">
                           <path
@@ -270,8 +283,15 @@ const Navbar = () => {
                           className="navbar__dropdown-item"
                           onClick={() => handleMenuClick("/wishlists")}
                         >
-                          <svg viewBox="0 0 32 32" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
-                            <path d="m16 28c7-4.733 14-10 14-17 0-1.792-.683-3.583-2.05-4.95-1.367-1.366-3.158-2.05-4.95-2.05-1.791 0-3.583.684-4.949 2.05l-2.051 2.051-2.05-2.051c-1.367-1.366-3.158-2.05-4.95-2.05-1.791 0-3.583.684-4.949 2.05-1.367 1.367-2.051 3.158-2.051 4.95 0 7 7 12.267 14 17z" fill="currentColor"></path>
+                          <svg
+                            viewBox="0 0 32 32"
+                            aria-hidden="true"
+                            xmlns="http://www.w3.org/2000/svg"
+                          >
+                            <path
+                              d="m16 28c7-4.733 14-10 14-17 0-1.792-.683-3.583-2.05-4.95-1.367-1.366-3.158-2.05-4.95-2.05-1.791 0-3.583.684-4.949 2.05l-2.051 2.051-2.05-2.051c-1.367-1.366-3.158-2.05-4.95-2.05-1.791 0-3.583.684-4.949 2.05-1.367 1.367-2.051 3.158-2.051 4.95 0 7 7 12.267 14 17z"
+                              fill="currentColor"
+                            ></path>
                           </svg>
                           Wishlists
                         </button>
@@ -279,8 +299,15 @@ const Navbar = () => {
                           className="navbar__dropdown-item"
                           onClick={() => handleMenuClick("/inbox")}
                         >
-                          <svg viewBox="0 0 32 32" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M26 2H6a4 4 0 0 0-4 4v16a4 4 0 0 0 4 4h6l4 4 4-4h6a4 4 0 0 0 4-4V6a4 4 0 0 0-4-4zM8 12h16v2H8zm0-4h16v2H8zm0 8h10v2H8z" fill="currentColor"></path>
+                          <svg
+                            viewBox="0 0 32 32"
+                            aria-hidden="true"
+                            xmlns="http://www.w3.org/2000/svg"
+                          >
+                            <path
+                              d="M26 2H6a4 4 0 0 0-4 4v16a4 4 0 0 0 4 4h6l4 4 4-4h6a4 4 0 0 0 4-4V6a4 4 0 0 0-4-4zM8 12h16v2H8zm0-4h16v2H8zm0 8h10v2H8z"
+                              fill="currentColor"
+                            ></path>
                           </svg>
                           Inbox
                         </button>

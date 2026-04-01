@@ -98,6 +98,7 @@ npm start
 - Deploy the `frontend` directory.
 - Set `REACT_APP_API_BASE_URL` to the Render backend URL.
 - [`frontend/vercel.json`](./frontend/vercel.json) already rewrites SPA routes to `index.html`.
+- For a beginner-friendly walkthrough, use [`VERCEL_FRONTEND_DEPLOY_GUIDE.md`](./VERCEL_FRONTEND_DEPLOY_GUIDE.md).
 
 ## Verification Commands
 

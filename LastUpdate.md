@@ -1,5 +1,56 @@
 # Last Update Log
 
+## 2026-04-02 02:07:33 +06:00
+
+Summary:
+
+- Replaced the old Airbnb-style brand mark with a custom geometric `A` logo in the frontend navbar and browser tab icon.
+
+Changes made:
+
+- Updated `frontend/src/components/Navbar.jsx` to use a new custom two-stroke `A` mark based on the selected:
+  - outer roof shape
+  - inner nested roof shape
+- Updated `frontend/src/components/Navbar.css` to size and color the new logo mark consistently with the wordmark.
+- Updated `frontend/public/index.html` so the browser tab favicon and theme color match the new logo.
+
+Verification:
+
+- Branding change applied at the main shared navbar entry point.
+
+Notes:
+
+- The visible wordmark text remains `airbnb`; this change only replaces the symbol/mark and tab icon.
+
+## 2026-04-02 00:09:14 +06:00
+
+Summary:
+
+- Added a beginner-friendly step-by-step Vercel deployment guide for the frontend.
+
+Changes made:
+
+- Added [`VERCEL_FRONTEND_DEPLOY_GUIDE.md`](./VERCEL_FRONTEND_DEPLOY_GUIDE.md) covering:
+  - importing the GitHub repo into Vercel
+  - setting `frontend` as the root directory
+  - setting the build/output/install commands
+  - adding `REACT_APP_API_BASE_URL`
+  - connecting the deployed frontend back to the Render backend
+  - common failure cases and redeploy steps
+- Updated `README.md` to link to the new Vercel deployment guide.
+
+Verification:
+
+- Guide content aligned with the current repo structure:
+  - frontend root: `frontend`
+  - build command: `npm run build`
+  - output directory: `build`
+  - SPA rewrites already configured in `frontend/vercel.json`
+
+Notes:
+
+- The Vercel guide assumes the backend is already deployed on Render and you have the final backend URL ready for `REACT_APP_API_BASE_URL`.
+
 ## 2026-04-01 23:23:11 +06:00
 
 Summary:

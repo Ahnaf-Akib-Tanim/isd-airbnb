@@ -41,17 +41,18 @@
 }
 
 .navbar__logo-icon {
-    width: 32px;
+    width: 36px;
     height: 32px;
-    color: #ff385c;
+    color: #f24e5e;
     flex: 0 0 auto;
+    overflow: visible;
 }
 
 .navbar__logo-text {
     font-size: 1.35rem;
     font-weight: 800;
     letter-spacing: -0.5px;
-    color: #ff385c;
+    color: #f24e5e;
     line-height: 1;
     user-select: none;
 }
