@@ -1,5 +1,34 @@
 # Last Update Log
 
+## 2026-04-01 23:23:11 +06:00
+
+Summary:
+
+- Finalized the repo for Render backend deployment and added a beginner-friendly deployment guide.
+- Improved homepage perceived image loading by restoring cache usage and reducing image-processing overhead.
+
+Changes made:
+
+- Updated `render.yaml`:
+  - added `region: singapore`
+  - added a backend-only `buildFilter`
+  - added `JWT_EXPIRY` and `JWT_REFRESH_EXPIRY` to the declared env vars
+- Updated `backend/monolith/src/main/resources/application.yml` to reduce default backend log verbosity from `DEBUG` to `INFO` for production-friendly Render logs.
+- Added [`RENDER_BACKEND_DEPLOY_GUIDE.md`](./RENDER_BACKEND_DEPLOY_GUIDE.md) with step-by-step Render deployment instructions for a beginner.
+- Updated `README.md` to link to the new Render deployment guide.
+- Updated `frontend/src/pages/HomePage.jsx` to stop clearing homepage cache on every load, show cached host cards immediately when available, and use async image decoding.
+- Updated `frontend/src/utils/imageUtils.js` to remove render-time image debug logging.
+
+Verification:
+
+- `backend/monolith`: `mvn -B -DskipTests package` -> passed
+- `frontend`: `npm run build` -> passed
+
+Notes:
+
+- For Render, the remaining non-code requirement is that your MongoDB Atlas network access must allow connections from Render.
+- Git will store the code and docs changes, but the MongoDB data changes already made earlier remain in the database itself, not in Git.
+
 ## 2026-04-01 23:12:31 +06:00
 
 Summary:

@@ -91,6 +91,7 @@ npm start
 - Use [`render.yaml`](./render.yaml) or create a Render web service from `backend/monolith`.
 - Render will assign `PORT`; the application already honors it.
 - Add the MongoDB, JWT, Supabase, and `FRONTEND_BASE_URL` variables in Render.
+- For a beginner-friendly walkthrough, use [`RENDER_BACKEND_DEPLOY_GUIDE.md`](./RENDER_BACKEND_DEPLOY_GUIDE.md).
 
 ### Vercel frontend
 
