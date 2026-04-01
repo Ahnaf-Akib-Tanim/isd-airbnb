@@ -1,30 +1,36 @@
-Backend and Atlas setup:
+Backend:
 
-1. Copy .env.example to .env
-2. Put your Atlas MongoDB connection strings in all MONGO_URI_* variables
-3. Start the stack:
-   docker-compose down
-   docker-compose up --build -d
+1. Keep the existing root `.env` file with the current MongoDB, JWT, and Supabase values.
+2. Start the monolith with Docker:
 
-Important:
-- docker-compose.yml is now configured for Atlas only.
-- It no longer starts a local MongoDB container.
-- If MONGO_URI_* is missing or wrong, the services will fail to connect.
-- Old local Docker Mongo volumes do not matter once you switch to Atlas URIs.
+   docker compose up --build
+
+   or start it with Maven after loading `.env` into the current PowerShell session:
+
+   $envLines = Get-Content .env | Where-Object { $_ -match '^[A-Za-z_][A-Za-z0-9_]*=' }
+   foreach ($line in $envLines) { $name, $value = $line -split '=', 2; [System.Environment]::SetEnvironmentVariable($name, $value, 'Process') }
+   cd backend\monolith
+   mvn spring-boot:run
+
+3. Backend URL:
+
+   http://localhost:8080
 
 Frontend:
 
-cd "C:\Buet\CSE 326 ISD\Airbnb project\frontend"
-npm install
-npm start
+1. Open a new terminal.
+2. Run:
 
-Open:
-http://localhost:3000
+   cd frontend
+   npm install
+   npm start
 
-Admin:
-- Admin login route: http://localhost:3000/admin/login
-- Admin verification queue: http://localhost:3000/admin/verification-requests
+3. Frontend URL:
 
-Notes:
-- If your Atlas IP access list does not allow your current network, Mongo connections will fail.
-- Make sure Atlas database users have permission for all service databases.
+   http://localhost:3000
+
+Deployment:
+
+- Render backend blueprint: `render.yaml`
+- Vercel frontend root: `frontend`
+- Set `REACT_APP_API_BASE_URL` in Vercel to your Render backend URL

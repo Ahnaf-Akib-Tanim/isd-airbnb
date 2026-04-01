@@ -3,7 +3,12 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import api from "../utils/axiosConfig";
 import { createBooking } from "../services/bookingService";
-import { getNightlyRate, getTaxPercent } from "../utils/hostUtils";
+import {
+  allowsPayLater,
+  getNightlyRate,
+  getPrimaryHostedProperty,
+  getTaxPercent,
+} from "../utils/hostUtils";
 import { toast } from "react-toastify";
 import Footer from "../components/Footer";
 import "./ReservationPage.css";
@@ -44,7 +49,7 @@ const ReservationPage = () => {
         const res = await api.get(`/api/users/${hostId}`);
         setHost(res.data);
         // Auto-enable payLater if host allows it
-        if (res.data.payLaterAllowed) {
+        if (allowsPayLater(res.data)) {
           // Don't auto-select, just allow the option
         }
       } catch (err) {
@@ -59,11 +64,15 @@ const ReservationPage = () => {
 
   const nightlyRate = getNightlyRate(host);
   const taxPct = getTaxPercent(host);
+  const primaryProperty = getPrimaryHostedProperty(host);
+  const payLaterAvailable = allowsPayLater(host);
+  const guestCapacity =
+    host?.guestCapacity || primaryProperty?.guestCapacity || 4;
   const nights =
     checkIn && checkOut
       ? Math.max(
           0,
-          (new Date(checkOut) - new Date(checkIn)) / (1000 * 60 * 60 * 24)
+          (new Date(checkOut) - new Date(checkIn)) / (1000 * 60 * 60 * 24),
         )
       : 0;
   const subtotal = nights * nightlyRate;
@@ -100,8 +109,8 @@ const ReservationPage = () => {
         checkInDate: checkIn,
         checkOutDate: checkOut,
         totalPrice: totalPrice,
-        propertyName: host?.hostDisplayName || 'Property',
-        cancellationPolicy: host?.cancellationPolicy || 'MODERATE',
+        propertyName: host?.hostDisplayName || "Property",
+        cancellationPolicy: host?.cancellationPolicy || "MODERATE",
         payoutPercentage: host?.payoutPercentage || 80.0,
         status: "PENDING",
         paymentStatus: payLater ? "PAY_LATER" : "COMPLETED",
@@ -111,13 +120,13 @@ const ReservationPage = () => {
 
       if (payLater) {
         toast.success(
-          "Reservation sent! You'll pay later. Awaiting admin approval."
+          "Reservation sent! You'll pay later. Awaiting admin approval.",
         );
         navigate("/my-bookings");
       } else {
         // Simulate payment processing
         toast.success(
-          "Reservation submitted with payment! Awaiting admin approval."
+          "Reservation submitted with payment! Awaiting admin approval.",
         );
         navigate("/my-bookings");
       }
@@ -125,7 +134,7 @@ const ReservationPage = () => {
       console.error("Booking failed:", err);
       toast.error(
         err.response?.data?.message ||
-          "Failed to create reservation. Please try again."
+          "Failed to create reservation. Please try again.",
       );
     } finally {
       setSubmitting(false);
@@ -150,7 +159,10 @@ const ReservationPage = () => {
       <div className="reservation-page">
         <div className="reservation-container">
           <h2>Listing not found</h2>
-          <button className="res-btn res-btn--secondary" onClick={() => navigate("/")}>
+          <button
+            className="res-btn res-btn--secondary"
+            onClick={() => navigate("/")}
+          >
             Back to Home
           </button>
         </div>
@@ -205,14 +217,11 @@ const ReservationPage = () => {
                     value={guests}
                     onChange={(e) => setGuests(parseInt(e.target.value, 10))}
                   >
-                    {Array.from(
-                      { length: host.guestCapacity || 4 },
-                      (_, i) => (
-                        <option key={i + 1} value={i + 1}>
-                          {i + 1} guest{i > 0 ? "s" : ""}
-                        </option>
-                      )
-                    )}
+                    {Array.from({ length: guestCapacity }, (_, i) => (
+                      <option key={i + 1} value={i + 1}>
+                        {i + 1} guest{i > 0 ? "s" : ""}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -224,7 +233,7 @@ const ReservationPage = () => {
             <section className="res-section">
               <h2>Payment</h2>
 
-              {host.payLaterAllowed ? (
+              {payLaterAvailable ? (
                 <>
                   <div className="res-pay-info-badge">
                     ✨ This host offers flexible payment options
@@ -239,7 +248,9 @@ const ReservationPage = () => {
                       />
                       <div>
                         <strong>💳 Pay now</strong>
-                        <p>Pay the total amount now (${totalPrice.toFixed(0)})</p>
+                        <p>
+                          Pay the total amount now (${totalPrice.toFixed(0)})
+                        </p>
                       </div>
                     </label>
                     <label className="res-radio-label">
@@ -252,7 +263,8 @@ const ReservationPage = () => {
                       <div>
                         <strong>⏰ Pay later</strong>
                         <p>
-                          Reserve now, pay after admin confirms your booking. No card required now!
+                          Reserve now, pay after admin confirms your booking. No
+                          card required now!
                         </p>
                       </div>
                     </label>
@@ -263,7 +275,9 @@ const ReservationPage = () => {
                   <span className="res-pay-note-icon">💳</span>
                   <div>
                     <strong>Immediate payment required</strong>
-                    <p>This host requires full payment at the time of booking.</p>
+                    <p>
+                      This host requires full payment at the time of booking.
+                    </p>
                   </div>
                 </div>
               )}
@@ -357,8 +371,8 @@ const ReservationPage = () => {
                 {submitting
                   ? "Processing..."
                   : payLater
-                  ? "Request to reserve"
-                  : `Confirm and pay · $${totalPrice.toFixed(0)}`}
+                    ? "Request to reserve"
+                    : `Confirm and pay · $${totalPrice.toFixed(0)}`}
               </button>
             </div>
           </div>
@@ -368,10 +382,7 @@ const ReservationPage = () => {
             <div className="res-summary-card">
               <div className="res-summary-header">
                 <img
-                  src={
-                    host.hostPortfolioImages?.[0] ||
-                    host.profileImage
-                  }
+                  src={host.hostPortfolioImages?.[0] || host.profileImage}
                   alt={host.hostDisplayName}
                   className="res-summary-img"
                 />

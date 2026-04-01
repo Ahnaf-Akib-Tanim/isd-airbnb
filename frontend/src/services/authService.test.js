@@ -52,16 +52,20 @@ describe("authService", () => {
 
     expect(res.token).toBe("jwt.token.value");
     expect(localStorage.getItem("token")).toBe("jwt.token.value");
-    expect(JSON.parse(localStorage.getItem("user"))).toEqual({
-      userId: "u-1",
-      email: "a@b.com",
-      firstName: "A",
-      lastName: "B",
-      role: "GUEST",
-      profileImage: "data:image/png;base64,abc",
-      emailVerified: false,
-      verificationStatus: "PENDING",
-    });
+    expect(JSON.parse(localStorage.getItem("user"))).toEqual(
+      expect.objectContaining({
+        userId: "u-1",
+        email: "a@b.com",
+        firstName: "A",
+        lastName: "B",
+        role: "GUEST",
+        profileImage: "data:image/png;base64,abc",
+        emailVerified: false,
+        verificationStatus: "PENDING",
+        canBook: false,
+        canHost: false,
+      }),
+    );
   });
 
   test("getMyProfile calls /me", async () => {

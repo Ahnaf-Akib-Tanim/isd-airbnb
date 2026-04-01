@@ -136,7 +136,12 @@
 
 .amenity-icon {
     color: #222;
-    font-weight: 700;
+    width: 20px;
+    min-width: 20px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
 }
 
 .listing-location p {
@@ -221,7 +226,7 @@
 
 .reserve-btn {
     width: 100%;
-    background: linear-gradient(to right, #E61E4D, #E31C5F, #D70466);
+    background: linear-gradient(to right, #e61e4d, #e31c5f, #d70466);
     color: white;
     border: none;
     padding: 14px;

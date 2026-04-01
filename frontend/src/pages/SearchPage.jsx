@@ -8,6 +8,8 @@ import { useAuth } from "../context/AuthContext";
 import { searchHosts } from "../services/hostsService";
 import userService from "../services/userService";
 import {
+  TOP_OFFERING_FILTERS,
+  getHostAmenities,
   getNightlyRate,
   getTaxPercent,
   hasAmenity,
@@ -18,12 +20,15 @@ import "./SearchPage.css";
 
 const ITEMS_PER_PAGE = 8;
 const CACHE_DURATION = 3 * 60 * 1000; // 3 minutes for search results
+const SEARCH_CACHE_VERSION = "v3";
 
 const SearchPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const { user, isAuthenticated, updateUser } = useAuth();
-  const [favorites, setFavorites] = useState(new Set(user?.favoriteHostIds || []));
+  const [favorites, setFavorites] = useState(
+    new Set(user?.favoriteHostIds || []),
+  );
 
   useEffect(() => {
     setFavorites(new Set(user?.favoriteHostIds || []));
@@ -42,7 +47,11 @@ const SearchPage = () => {
       const newFavs = updated.favoriteHostIds || [];
       setFavorites(new Set(newFavs));
       updateUser({ favoriteHostIds: newFavs });
-      toast.success(newFavs.includes(hostId) ? "Saved to wishlist" : "Removed from wishlist");
+      toast.success(
+        newFavs.includes(hostId)
+          ? "Saved to wishlist"
+          : "Removed from wishlist",
+      );
     } catch (err) {
       toast.error("Failed to update wishlist");
     }
@@ -68,7 +77,7 @@ const SearchPage = () => {
 
   // Generate cache key based on search params
   const getCacheKey = useCallback(() => {
-    return `search_cache_${locationQuery}_${checkin}_${checkout}_${guests}`;
+    return `search_cache_${SEARCH_CACHE_VERSION}_${locationQuery}_${checkin}_${checkout}_${guests}`;
   }, [locationQuery, checkin, checkout, guests]);
 
   // Cache helpers
@@ -171,10 +180,11 @@ const SearchPage = () => {
     let result = [...hosts];
 
     // Apply filters
-    if (activeFilters.has("wifi"))
-      result = result.filter((h) => hasAmenity(h, "wifi"));
-    if (activeFilters.has("kitchen"))
-      result = result.filter((h) => hasAmenity(h, "kitchen"));
+    TOP_OFFERING_FILTERS.forEach((filter) => {
+      if (activeFilters.has(filter.key)) {
+        result = result.filter((host) => hasAmenity(host, filter.amenity));
+      }
+    });
     if (activeFilters.has("favorite"))
       result = result.filter((h) => isGuestFavorite(h));
 
@@ -349,24 +359,63 @@ const SearchPage = () => {
 
             {/* ── Filters + Sort ── */}
             <div className="search-page__filters">
-              <button
-                className={`filter-pill ${activeFilters.has("wifi") ? "filter-pill--active" : ""}`}
-                onClick={() => toggleFilter("wifi")}
-              >
-                📶 Wifi
-              </button>
-              <button
-                className={`filter-pill ${activeFilters.has("kitchen") ? "filter-pill--active" : ""}`}
-                onClick={() => toggleFilter("kitchen")}
-              >
-                🍳 Kitchen
-              </button>
-              <button
+              {TOP_OFFERING_FILTERS.map((filter) => (
+                <label
+                  key={filter.key}
+                  className={`filter-pill ${activeFilters.has(filter.key) ? "filter-pill--active" : ""}`}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    cursor: "pointer",
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={activeFilters.has(filter.key)}
+                    onChange={() => toggleFilter(filter.key)}
+                    style={{ margin: 0 }}
+                  />
+                  <span>{filter.label}</span>
+                </label>
+              ))}
+              <label
                 className={`filter-pill ${activeFilters.has("favorite") ? "filter-pill--active" : ""}`}
-                onClick={() => toggleFilter("favorite")}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  cursor: "pointer",
+                }}
               >
-                ⭐ Guest favorite
-              </button>
+                <input
+                  type="checkbox"
+                  checked={activeFilters.has("favorite")}
+                  onChange={() => toggleFilter("favorite")}
+                  style={{ margin: 0 }}
+                />
+                <span>Guest favorite</span>
+              </label>
+              <div style={{ display: "none" }}>
+                <button
+                  className={`filter-pill ${activeFilters.has("wifi") ? "filter-pill--active" : ""}`}
+                  onClick={() => toggleFilter("wifi")}
+                >
+                  📶 Wifi
+                </button>
+                <button
+                  className={`filter-pill ${activeFilters.has("kitchen") ? "filter-pill--active" : ""}`}
+                  onClick={() => toggleFilter("kitchen")}
+                >
+                  🍳 Kitchen
+                </button>
+                <button
+                  className={`filter-pill ${activeFilters.has("favorite") ? "filter-pill--active" : ""}`}
+                  onClick={() => toggleFilter("favorite")}
+                >
+                  ⭐ Guest favorite
+                </button>
+              </div>
               <select
                 className="filter-pill filter-sort-select"
                 value={sortBy}
@@ -385,7 +434,7 @@ const SearchPage = () => {
             <div className="search-page__taxes">
               <div className="tax-toggle">
                 <span className="tax-icon">🏷️</span>
-                <span className="tax-text">Display total before taxes</span>
+                <span className="tax-text">Display total after taxes</span>
                 <div
                   className={`toggle-switch ${showTax ? "toggle-switch--on" : ""}`}
                   onClick={() => setShowTax(!showTax)}
@@ -475,10 +524,7 @@ const SearchPage = () => {
                           className={`search-card__heart ${favorites.has(host.userId) ? "active" : ""}`}
                           onClick={(e) => handleToggleFavorite(e, host.userId)}
                         >
-                          <svg
-                            viewBox="0 0 32 32"
-                            aria-hidden="true"
-                          >
+                          <svg viewBox="0 0 32 32" aria-hidden="true">
                             <path d="m16 28c7-4.733 14-10 14-17 0-1.792-.683-3.583-2.05-4.95-1.367-1.366-3.158-2.05-4.95-2.05-1.791 0-3.583.684-4.949 2.05l-2.051 2.051-2.05-2.051c-1.367-1.366-3.158-2.05-4.95-2.05-1.791 0-3.583.684-4.949 2.05-1.367 1.367-2.051 3.158-2.051 4.95 0 7 7 12.267 14 17z" />
                           </svg>
                         </button>
@@ -500,7 +546,7 @@ const SearchPage = () => {
                             bed · 1 bath
                           </div>
                           <div className="search-card__features">
-                            {host.offeringHighlights?.slice(0, 3).join(" · ")}
+                            {getHostAmenities(host).slice(0, 3).join(" · ")}
                           </div>
                         </div>
                         <div className="search-card__bottom">

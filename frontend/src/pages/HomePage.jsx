@@ -9,6 +9,7 @@ import { useAuth } from "../context/AuthContext";
 import { getHostSuggestions } from "../services/hostsService";
 import userService from "../services/userService";
 import {
+  TOP_OFFERING_FILTERS,
   getNightlyRate,
   getTaxPercent,
   hasAmenity,
@@ -18,12 +19,14 @@ import { getOptimizedImageUrl } from "../utils/imageUtils";
 
 const ITEMS_PER_PAGE = 150; // Increased items to get more full rows per country
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
-const CACHE_KEY = "host_suggestions_cache";
+const CACHE_KEY = "host_suggestions_cache_v2";
 
 const HomePage = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated, updateUser } = useAuth();
-  const [favorites, setFavorites] = useState(new Set(user?.favoriteHostIds || []));
+  const [favorites, setFavorites] = useState(
+    new Set(user?.favoriteHostIds || []),
+  );
 
   // Keep favorites in sync with user context
   useEffect(() => {
@@ -109,23 +112,16 @@ const HomePage = () => {
         setLoading(true);
         setError(null);
 
-        // Debug: Clear cache temporarily to test fresh data
-        console.log("Loading fresh data for page:", page);
-        localStorage.removeItem(CACHE_KEY);
+        const cachedData = getCachedData();
+        if (cachedData && alive) {
+          setHosts(Array.isArray(cachedData) ? cachedData : []);
+          setLoading(false);
+        }
 
         // Fetch data for current page with server-side pagination
         const currentPage = page - 1; // Convert to 0-based for backend
         const data = await getHostSuggestions(ITEMS_PER_PAGE, currentPage);
         if (!alive) return;
-
-        console.log(
-          "Page data received:",
-          data?.length || 0,
-          "items for page",
-          page,
-        );
-        console.log("Data type:", typeof data);
-        console.log("Is array:", Array.isArray(data));
 
         const validData = Array.isArray(data) ? data : [];
         setHosts(validData);
@@ -167,12 +163,11 @@ const HomePage = () => {
     let result = [...hosts];
 
     // Apply filters
-    if (activeFilters.has("wifi")) {
-      result = result.filter((h) => hasAmenity(h, "wifi"));
-    }
-    if (activeFilters.has("kitchen")) {
-      result = result.filter((h) => hasAmenity(h, "kitchen"));
-    }
+    TOP_OFFERING_FILTERS.forEach((filter) => {
+      if (activeFilters.has(filter.key)) {
+        result = result.filter((host) => hasAmenity(host, filter.amenity));
+      }
+    });
     if (activeFilters.has("favorite")) {
       result = result.filter((h) => isGuestFavorite(h));
     }
@@ -224,10 +219,10 @@ const HomePage = () => {
   };
 
   const getPrimaryImage = (host) =>
-    host?.profileImage ||
     (host?.hostPortfolioImages && host.hostPortfolioImages.length > 0
       ? host.hostPortfolioImages[0]
       : null) ||
+    host?.profileImage ||
     null;
 
   const getHostTitle = (host) =>
@@ -310,12 +305,14 @@ const HomePage = () => {
 
     // Filter to prioritize countries with at least 5 hosts so we get full rows
     const validCountryEntries = Object.entries(groupedHosts).filter(
-      ([country, hosts]) => hosts.length >= 5
+      ([country, hosts]) => hosts.length >= 5,
     );
 
     // If too few countries meet the criteria, fallback to all
     const entriesToDisplay =
-      validCountryEntries.length >= 2 ? validCountryEntries : Object.entries(groupedHosts);
+      validCountryEntries.length >= 2
+        ? validCountryEntries
+        : Object.entries(groupedHosts);
 
     // Limit to maximum 7 countries per page
     const countryEntries = entriesToDisplay.slice(0, 7);
@@ -343,18 +340,8 @@ const HomePage = () => {
     const primaryImage = getPrimaryImage(host);
     const imgUrl = getOptimizedImageUrl(primaryImage);
 
-    // Generate unique fallback image for each host if the original fails
     const fallbackUrl = `https://picsum.photos/680/510?random=${host.userId?.slice(-8) || Math.random()}`;
     const img = imgUrl || fallbackUrl;
-
-    // Debug logging
-    console.log("Host data:", host.userId, {
-      profileImage: host?.profileImage,
-      portfolioImages: host?.hostPortfolioImages,
-      primaryImage,
-      imgUrl,
-      finalImg: img,
-    });
 
     const title = getHostTitle(host);
     const location = getLocation(host);
@@ -376,6 +363,7 @@ const HomePage = () => {
               alt={title}
               className="home-suggest__tile-img"
               loading="lazy"
+              decoding="async"
               onError={(e) => {
                 e.target.onerror = null;
                 e.target.src = fallbackUrl;
@@ -657,24 +645,63 @@ const HomePage = () => {
               {/* ── Toolbar: Filters + Sort + Tax Toggle ── */}
               <div className="home-toolbar">
                 <div className="home-toolbar__filters">
-                  <button
-                    className={`filter-pill ${activeFilters.has("wifi") ? "filter-pill--active" : ""}`}
-                    onClick={() => toggleFilter("wifi")}
-                  >
-                    📶 Wifi
-                  </button>
-                  <button
-                    className={`filter-pill ${activeFilters.has("kitchen") ? "filter-pill--active" : ""}`}
-                    onClick={() => toggleFilter("kitchen")}
-                  >
-                    🍳 Kitchen
-                  </button>
-                  <button
+                  {TOP_OFFERING_FILTERS.map((filter) => (
+                    <label
+                      key={filter.key}
+                      className={`filter-pill ${activeFilters.has(filter.key) ? "filter-pill--active" : ""}`}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                        cursor: "pointer",
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={activeFilters.has(filter.key)}
+                        onChange={() => toggleFilter(filter.key)}
+                        style={{ margin: 0 }}
+                      />
+                      <span>{filter.label}</span>
+                    </label>
+                  ))}
+                  <label
                     className={`filter-pill ${activeFilters.has("favorite") ? "filter-pill--active" : ""}`}
-                    onClick={() => toggleFilter("favorite")}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      cursor: "pointer",
+                    }}
                   >
-                    ⭐ Guest favorite
-                  </button>
+                    <input
+                      type="checkbox"
+                      checked={activeFilters.has("favorite")}
+                      onChange={() => toggleFilter("favorite")}
+                      style={{ margin: 0 }}
+                    />
+                    <span>Guest favorite</span>
+                  </label>
+                  <div style={{ display: "none" }}>
+                    <button
+                      className={`filter-pill ${activeFilters.has("wifi") ? "filter-pill--active" : ""}`}
+                      onClick={() => toggleFilter("wifi")}
+                    >
+                      📶 Wifi
+                    </button>
+                    <button
+                      className={`filter-pill ${activeFilters.has("kitchen") ? "filter-pill--active" : ""}`}
+                      onClick={() => toggleFilter("kitchen")}
+                    >
+                      🍳 Kitchen
+                    </button>
+                    <button
+                      className={`filter-pill ${activeFilters.has("favorite") ? "filter-pill--active" : ""}`}
+                      onClick={() => toggleFilter("favorite")}
+                    >
+                      ⭐ Guest favorite
+                    </button>
+                  </div>
                 </div>
 
                 <div className="home-toolbar__right">
@@ -693,7 +720,7 @@ const HomePage = () => {
                   </select>
 
                   <label className="home-tax-toggle">
-                    <span>Display total before taxes</span>
+                    <span>Display total after taxes</span>
                     <div
                       className={`toggle-switch ${showTax ? "toggle-switch--on" : ""}`}
                       onClick={() => setShowTax(!showTax)}
@@ -817,16 +844,16 @@ const HomePage = () => {
         .search-field--when .when-values { display: flex; gap: 8px; }
         .search-field--when .react-datepicker-wrapper { flex: 1; }
         .search-field--when .react-datepicker__input-container input { width: 100%; }
-        .guest-dropdown { 
-          position: absolute; 
-          top: 100%; 
-          right: 0; 
-          background: white; 
-          padding: 16px; 
-          border-radius: 16px; 
-          box-shadow: 0 4px 20px rgba(0,0,0,0.15); 
-          width: 340px; 
-          z-index: 9999; 
+        .guest-dropdown {
+          position: absolute;
+          top: 100%;
+          right: 0;
+          background: white;
+          padding: 16px;
+          border-radius: 16px;
+          box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+          width: 340px;
+          z-index: 9999;
           margin-top: 12px;
           border: 1px solid rgba(0,0,0,0.08);
         }

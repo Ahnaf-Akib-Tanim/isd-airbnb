@@ -2,7 +2,7 @@ import React, { useEffect } from "react";
 import { MapContainer, TileLayer, Marker, useMap } from "react-leaflet";
 import L from "leaflet";
 import { useNavigate } from "react-router-dom";
-import { getNightlyRate } from "../utils/hostUtils";
+import { getHostCoordinates, getNightlyRate } from "../utils/hostUtils";
 import "leaflet/dist/leaflet.css";
 import "./SearchResultsMap.css";
 
@@ -23,7 +23,7 @@ const RecenterMap = ({ locations }) => {
   useEffect(() => {
     if (locations.length > 0) {
       const bounds = L.latLngBounds(
-        locations.map((l) => [l.latitude, l.longitude])
+        locations.map((l) => [l.latitude, l.longitude]),
       );
       map.fitBounds(bounds, { padding: [50, 50], maxZoom: 14 });
     }
@@ -35,13 +35,12 @@ const SearchResultsMap = ({ hosts }) => {
   const navigate = useNavigate();
 
   // Filter hosts with valid coordinates
-  const validHosts = (hosts || []).filter(
-    (h) =>
-      h.latitude != null &&
-      h.longitude != null &&
-      !isNaN(h.latitude) &&
-      !isNaN(h.longitude)
-  );
+  const validHosts = (hosts || [])
+    .map((host) => {
+      const coordinates = getHostCoordinates(host);
+      return coordinates ? { ...host, coordinates } : null;
+    })
+    .filter(Boolean);
 
   if (validHosts.length === 0) {
     return (
@@ -62,7 +61,7 @@ const SearchResultsMap = ({ hosts }) => {
   };
 
   // Center on first valid host
-  const defaultCenter = [validHosts[0].latitude, validHosts[0].longitude];
+  const defaultCenter = validHosts[0].coordinates;
 
   return (
     <MapContainer
@@ -79,7 +78,7 @@ const SearchResultsMap = ({ hosts }) => {
       {validHosts.map((host) => (
         <Marker
           key={host.userId}
-          position={[host.latitude, host.longitude]}
+          position={host.coordinates}
           icon={createIcon(getNightlyRate(host))}
           eventHandlers={{
             click: () => navigate(`/rooms/${host.userId}`),
