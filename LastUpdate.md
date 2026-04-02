@@ -1,5 +1,34 @@
 # Last Update Log
 
+## 2026-04-02 02:18:39 +06:00
+
+Summary:
+
+- Added a dedicated architecture note explaining the current modular-monolith structure and how the earlier service split was consolidated with minimum backend and database change.
+
+Changes made:
+
+- Added [`MODULAR_MONOLITH_STRUCTURE.md`](./MODULAR_MONOLITH_STRUCTURE.md) covering:
+  - the current runtime topology
+  - why the codebase still has a microservice-style feel
+  - how the old service domains were folded into one Spring Boot app
+  - how routing works now without an API gateway
+  - how databases, internal module calls, and deployments are handled now
+- Updated `README.md` to link to the new monolith structure guide.
+
+Verification:
+
+- Guide content checked against the current repo structure and runtime files:
+  - `backend/monolith`
+  - `docker-compose.yml`
+  - `render.yaml`
+  - `backend/monolith/src/main/resources/application.yml`
+  - current frontend `/api/...` usage
+
+Notes:
+
+- Some older files under `docs/` still describe the previous microservice-era design and should be treated as historical unless updated separately.
+
 ## 2026-04-02 02:07:33 +06:00
 
 Summary:

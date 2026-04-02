@@ -17,6 +17,7 @@ No database migration is required. Existing MongoDB and Supabase credentials rem
 - Frontend API routes stayed on the same `/api/...` paths.
 - Local Docker startup was simplified to one backend container in [`docker-compose.yml`](./docker-compose.yml).
 - Render deployment is now described in [`render.yaml`](./render.yaml).
+- The monolith migration and current module layout are explained in [`MODULAR_MONOLITH_STRUCTURE.md`](./MODULAR_MONOLITH_STRUCTURE.md).
 
 ## Repository Layout
 
