@@ -211,9 +211,10 @@ const HomePage = () => {
 
   const handleSearch = () => {
     const params = new URLSearchParams();
-    if (locationQuery) params.append("location", locationQuery);
-    if (startDate) params.append("checkin", startDate.toISOString());
-    if (endDate) params.append("checkout", endDate.toISOString());
+    if (locationQuery.trim()) params.append("location", locationQuery.trim());
+    // Use YYYY-MM-DD format so date inputs show correctly & backend parses properly
+    if (startDate) params.append("checkin", startDate.toISOString().split("T")[0]);
+    if (endDate) params.append("checkout", endDate.toISOString().split("T")[0]);
     if (totalGuestCount > 0) params.append("guests", totalGuestCount);
     navigate(`/search?${params.toString()}`);
   };

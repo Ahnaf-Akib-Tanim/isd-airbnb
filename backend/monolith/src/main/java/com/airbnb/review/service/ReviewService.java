@@ -16,6 +16,7 @@ public class ReviewService {
 
     private final ReviewRepository reviewRepository;
     private final UserService userService;
+    private final AiReviewSummaryService aiReviewSummaryService;
 
     public Review createReview(Review review) {
         // Check if review already exists for this booking
@@ -30,6 +31,10 @@ public class ReviewService {
         
         Review saved = reviewRepository.save(review);
         updateHostRating(saved.getHostId());
+        
+        // Trigger AI summary regeneration asynchronously
+        triggerSummaryUpdate(saved.getHostId());
+        
         return saved;
     }
 
@@ -90,6 +95,7 @@ public class ReviewService {
         review.setUpdatedAt(LocalDateTime.now());
         Review saved = reviewRepository.save(review);
         updateHostRating(saved.getHostId());
+        triggerSummaryUpdate(saved.getHostId());
         return saved;
     }
 
@@ -99,6 +105,7 @@ public class ReviewService {
         review.setUpdatedAt(LocalDateTime.now());
         Review saved = reviewRepository.save(review);
         updateHostRating(saved.getHostId());
+        triggerSummaryUpdate(saved.getHostId());
         return saved;
     }
 
@@ -145,5 +152,26 @@ public class ReviewService {
         } catch (Exception e) {
             System.err.println("Failed to update host rating: " + e.getMessage());
         }
+    }
+
+    /**
+     * Trigger async AI summary generation for a host's reviews.
+     */
+    public void triggerSummaryUpdate(String hostId) {
+        try {
+            List<Review> approvedReviews = getReviewsByHost(hostId);
+            if (!approvedReviews.isEmpty()) {
+                aiReviewSummaryService.generateSummaryAsync(hostId, approvedReviews);
+            }
+        } catch (Exception e) {
+            System.err.println("Failed to trigger AI summary: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Get AI-generated review summary for a host.
+     */
+    public com.airbnb.review.model.ReviewSummary getAiSummary(String hostId) {
+        return aiReviewSummaryService.getSummary(hostId);
     }
 }

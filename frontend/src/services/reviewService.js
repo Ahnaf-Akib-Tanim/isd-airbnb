@@ -52,6 +52,11 @@ export const rejectReview = async (reviewId) => {
   return response.data;
 };
 
+export const getAiReviewSummary = async (hostId) => {
+  const response = await api.get(`${BASE}/host/${hostId}/summary`);
+  return response.data;
+};
+
 const reviewService = {
   createReview,
   getReview,
@@ -63,6 +68,7 @@ const reviewService = {
   getPendingReviews,
   approveReview,
   rejectReview,
+  getAiReviewSummary,
 };
 
 export default reviewService;

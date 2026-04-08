@@ -88,22 +88,32 @@ export const searchHosts = async ({
   checkout = null,
   guests = 0,
   page = 0,
-  limit = 50,
+  limit = 200,
 }) => {
   try {
-    // Fetch from server with filters and retry logic
+    // Fetch from server with location filter
     const response = await fetchWithRetry(async () =>
       api.get("/api/users/hosts/suggestions", {
-        params: { 
+        params: {
           location,
           page,
-          limit
+          limit,
         },
         timeout: TIMEOUT,
       })
     );
-    
-    let hosts = Array.isArray(response.data) ? response.data : [];
+
+    const data = response.data;
+    // Handle both plain array and paginated response formats
+    let hosts = [];
+    if (Array.isArray(data)) {
+      hosts = data;
+    } else if (data && Array.isArray(data.content)) {
+      hosts = data.content;
+    } else if (data && Array.isArray(data.data)) {
+      hosts = data.data;
+    }
+
     console.log(`Search returned ${hosts.length} hosts for location: "${location}"`);
 
     // Client-side guest capacity filter
@@ -113,26 +123,8 @@ export const searchHosts = async ({
       console.log(`Filtered by guest capacity (${guests}): ${beforeFilter} -> ${hosts.length}`);
     }
 
-    // If no hosts found for a location filter, fallback to all hosts:
-    if (hosts.length === 0 && location && location.trim()) {
-      console.info(`No hosts found for location '${location}', retrying without location filter`);
-      const fallbackResponse = await fetchWithRetry(async () =>
-        api.get("/api/users/hosts/suggestions", {
-          params: {
-            location: "",
-            page: 0,
-            limit: 200,
-          },
-          timeout: TIMEOUT,
-        })
-      );
-      hosts = Array.isArray(fallbackResponse.data) ? fallbackResponse.data : [];
-      if (guests > 0) {
-        const beforeFilter = hosts.length;
-        hosts = hosts.filter((h) => (h.guestCapacity || 2) >= guests);
-        console.log(`Fallback guest capacity filter (${guests}): ${beforeFilter} -> ${hosts.length}`);
-      }
-    }
+    // NOTE: No fallback to "all hosts" when location search yields 0.
+    // If location is provided and no results found, show empty (correct behavior).
 
     // If dates provided, check availability (non-blocking)
     if (checkin && checkout && hosts.length > 0) {
@@ -147,12 +139,12 @@ export const searchHosts = async ({
             : new Date(checkout).toISOString().split("T")[0];
 
         console.log(`Checking availability for ${checkInDate} to ${checkOutDate}`);
-        
+
         const availResponse = await api.get("/api/availability/available-hosts", {
           params: { checkIn: checkInDate, checkOut: checkOutDate },
-          timeout: 5000, // Shorter timeout for availability check
+          timeout: 5000,
         });
-        
+
         const availableHostIds = new Set(availResponse.data || []);
         console.log(`Availability check returned ${availableHostIds.size} available hosts`);
 
@@ -168,14 +160,12 @@ export const searchHosts = async ({
         }
       } catch (err) {
         console.warn("Availability check failed, showing all results:", err?.message);
-        // Continue with all hosts if availability check fails
       }
     }
 
     return hosts;
   } catch (err) {
     console.error("Search failed after retries:", err?.message || err);
-    // Return empty array instead of throwing to prevent UI crashes
     return [];
   }
 };

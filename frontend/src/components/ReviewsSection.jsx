@@ -4,7 +4,7 @@ import { markHelpful } from "../services/reviewService";
 import { toast } from "react-toastify";
 import "./ReviewsSection.css";
 
-const ReviewsSection = ({ reviews, averageRating, reviewCount, categoryScores }) => {
+const ReviewsSection = ({ reviews, averageRating, reviewCount, categoryScores, aiSummary, onGenerateSummary, isGeneratingAi }) => {
   const [showAll, setShowAll] = useState(false);
   const [localReviews, setLocalReviews] = useState([]);
   const { user } = useAuth();
@@ -91,6 +91,111 @@ const ReviewsSection = ({ reviews, averageRating, reviewCount, categoryScores })
           </div>
         </div>
       </div>
+
+      {/* AI Review Summary or Generate Button */}
+      {aiSummary && aiSummary.generated && aiSummary.summary ? (
+        <div style={{
+          margin: '24px 0',
+          padding: '24px 28px',
+          background: 'linear-gradient(135deg, #f0f4ff 0%, #fef6ff 50%, #fff0f6 100%)',
+          borderRadius: '16px',
+          border: '1px solid #e8e0f0',
+          position: 'relative',
+          overflow: 'hidden',
+        }}>
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: '3px',
+            background: 'linear-gradient(90deg, #7c3aed, #ec4899, #f59e0b)',
+            opacity: 0.6,
+          }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
+              <path d="M12 2L14.09 8.26L20 9.27L15.55 13.97L16.91 20L12 16.9L7.09 20L8.45 13.97L4 9.27L9.91 8.26L12 2Z"
+                fill="url(#sparkle-grad)" />
+              <defs>
+                <linearGradient id="sparkle-grad" x1="4" y1="2" x2="20" y2="20">
+                  <stop stopColor="#7c3aed" />
+                  <stop offset="1" stopColor="#ec4899" />
+                </linearGradient>
+              </defs>
+            </svg>
+            <span style={{ fontSize: '16px', fontWeight: 700, color: '#1f2937', letterSpacing: '-0.2px' }}>
+              AI Review Summary
+            </span>
+            <span style={{
+              fontSize: '11px',
+              padding: '2px 8px',
+              background: 'rgba(124, 58, 237, 0.1)',
+              color: '#7c3aed',
+              borderRadius: '10px',
+              fontWeight: 600,
+            }}>
+              {aiSummary.reviewCount} reviews analyzed
+            </span>
+          </div>
+          <p style={{
+            fontSize: '15px',
+            lineHeight: '1.7',
+            color: '#374151',
+            margin: 0,
+            fontStyle: 'italic',
+          }}>
+            "{aiSummary.summary}"
+          </p>
+        </div>
+      ) : isGeneratingAi ? (
+        <div style={{
+          margin: '24px 0',
+          padding: '24px 28px',
+          background: 'linear-gradient(135deg, #f0f4ff 0%, #fef6ff 50%, #fff0f6 100%)',
+          borderRadius: '16px',
+          border: '1px solid #e8e0f0',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '16px',
+        }}>
+          <div className="spinner" style={{
+            width: '24px',
+            height: '24px',
+            border: '3px solid rgba(124, 58, 237, 0.2)',
+            borderTopColor: '#7c3aed',
+            borderRadius: '50%',
+            animation: 'spin 1s linear infinite'
+          }}><style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style></div>
+          <span style={{ fontSize: '15px', fontWeight: 500, color: '#374151' }}>
+            Hold on, analyzing thousands of review data points...
+          </span>
+        </div>
+      ) : (
+        <div style={{ margin: '20px 0' }}>
+          <button 
+             onClick={onGenerateSummary}
+             style={{
+               display: 'flex',
+               alignItems: 'center',
+               gap: '8px',
+               background: 'linear-gradient(90deg, #7c3aed, #ec4899)',
+               color: 'white',
+               border: 'none',
+               padding: '10px 20px',
+               borderRadius: '24px',
+               fontWeight: 600,
+               fontSize: '14px',
+               cursor: 'pointer',
+               boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+               transition: 'transform 0.2s ease, opacity 0.2s',
+             }}
+             onMouseOver={(e) => e.currentTarget.style.opacity = '0.9'}
+             onMouseOut={(e) => e.currentTarget.style.opacity = '1'}
+          >
+            <span style={{ fontSize: '16px' }}>✨</span> Generate AI Summary
+          </button>
+        </div>
+      )}
 
       {/* Category Ratings */}
       {categoryScores && (

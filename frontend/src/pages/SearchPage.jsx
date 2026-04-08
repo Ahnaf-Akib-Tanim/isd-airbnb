@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import Footer from "../components/Footer";
@@ -58,9 +58,17 @@ const SearchPage = () => {
   };
 
   const locationQuery = searchParams.get("location") || "";
-  const checkin = searchParams.get("checkin");
-  const checkout = searchParams.get("checkout");
+  // Normalize checkin/checkout: strip time portion so date inputs work correctly
+  const checkin = searchParams.get("checkin")
+    ? searchParams.get("checkin").split("T")[0]
+    : null;
+  const checkout = searchParams.get("checkout")
+    ? searchParams.get("checkout").split("T")[0]
+    : null;
   const guests = parseInt(searchParams.get("guests") || "0", 10);
+
+  // Track whether the current search was triggered manually (bypass cache)
+  const forceRefreshRef = useRef(false);
 
   const [hosts, setHosts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -117,21 +125,28 @@ const SearchPage = () => {
   // Sync inline fields when URL search params change
   useEffect(() => {
     setSearchLoc(searchParams.get("location") || "");
-    setSearchCheckin(searchParams.get("checkin") || "");
-    setSearchCheckout(searchParams.get("checkout") || "");
+    const rawCheckin = searchParams.get("checkin") || "";
+    const rawCheckout = searchParams.get("checkout") || "";
+    // Strip time portion so HTML date inputs display correctly
+    setSearchCheckin(rawCheckin ? rawCheckin.split("T")[0] : "");
+    setSearchCheckout(rawCheckout ? rawCheckout.split("T")[0] : "");
     setSearchGuests(parseInt(searchParams.get("guests") || "0", 10));
   }, [searchParams]);
 
   const runSearch = useCallback(async () => {
     setLoading(true);
     try {
-      // Try cache first
-      const cachedData = getCachedData();
-      if (cachedData) {
-        setHosts(Array.isArray(cachedData) ? cachedData : []);
-        setLoading(false);
-        return;
+      // Skip cache if user manually triggered a re-search
+      if (!forceRefreshRef.current) {
+        const cachedData = getCachedData();
+        if (cachedData) {
+          setHosts(Array.isArray(cachedData) ? cachedData : []);
+          setLoading(false);
+          return;
+        }
       }
+      // Reset force-refresh flag
+      forceRefreshRef.current = false;
 
       // Fetch fresh data
       const data = await searchHosts({
@@ -167,10 +182,23 @@ const SearchPage = () => {
 
   const handleInlineSearch = () => {
     const params = new URLSearchParams();
-    if (searchLoc) params.append("location", searchLoc);
+    if (searchLoc.trim()) params.append("location", searchLoc.trim());
     if (searchCheckin) params.append("checkin", searchCheckin);
     if (searchCheckout) params.append("checkout", searchCheckout);
     if (searchGuests > 0) params.append("guests", searchGuests);
+
+    // Clear the cache for current params so fresh data is fetched
+    try {
+      const currentKey = getCacheKey();
+      localStorage.removeItem(currentKey);
+      // Also clear the new key
+      const newKey = `search_cache_${SEARCH_CACHE_VERSION}_${searchLoc.trim()}_${searchCheckin}_${searchCheckout}_${searchGuests}`;
+      localStorage.removeItem(newKey);
+    } catch (_) {}
+
+    // Force bypass cache on next runSearch
+    forceRefreshRef.current = true;
+
     setSearchParams(params);
     setPage(1);
   };

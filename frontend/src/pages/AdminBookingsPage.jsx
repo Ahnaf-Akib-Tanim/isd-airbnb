@@ -13,46 +13,21 @@ import api from "../utils/axiosConfig";
 import "./AdminBookingsPage.css";
 
 const STATUS_CONFIG = {
-  PENDING: { label: "Pending", color: "#856404", bg: "#ffeeba", icon: "⏳" },
-  CONFIRMED: {
-    label: "Confirmed",
-    color: "#155724",
-    bg: "#d4edda",
-    icon: "✅",
-  },
-  NOT_PAID_YET: {
-    label: "Not Paid Yet",
-    color: "#856404",
-    bg: "#fff3cd",
-    icon: "💳",
-  },
-  CANCELLED: {
-    label: "Cancelled",
-    color: "#721c24",
-    bg: "#f8d7da",
-    icon: "❌",
-  },
-  CHECKED_IN: {
-    label: "Checked In",
-    color: "#004085",
-    bg: "#cce5ff",
-    icon: "🏨",
-  },
-  COMPLETED: {
-    label: "Completed",
-    color: "#0c5460",
-    bg: "#d1ecf1",
-    icon: "🎉",
-  },
-  REFUNDED: { label: "Refunded", color: "#6c757d", bg: "#e2e3e5", icon: "💸" },
+  PENDING: { label: "Pending", color: "#b45309", bg: "#fef3c7" },
+  CONFIRMED: { label: "Confirmed", color: "#047857", bg: "#d1fae5" },
+  NOT_PAID_YET: { label: "Not Paid Yet", color: "#b45309", bg: "#fef3c7" },
+  CANCELLED: { label: "Cancelled", color: "#b91c1c", bg: "#fee2e2" },
+  CHECKED_IN: { label: "Checked In", color: "#1d4ed8", bg: "#dbeafe" },
+  COMPLETED: { label: "Completed", color: "#0f766e", bg: "#ccfbf1" },
+  REFUNDED: { label: "Refunded", color: "#4b5563", bg: "#f3f4f6" },
 };
 
 const PAYMENT_CONFIG = {
-  PENDING: { label: "Payment Pending", color: "#856404", bg: "#ffeeba" },
-  COMPLETED: { label: "Paid", color: "#155724", bg: "#d4edda" },
-  PAY_LATER: { label: "Pay Later", color: "#0c5460", bg: "#d1ecf1" },
-  FAILED: { label: "Failed", color: "#721c24", bg: "#f8d7da" },
-  REFUNDED: { label: "Refunded", color: "#383d41", bg: "#e2e3e5" },
+  PENDING: { label: "Payment Pending", color: "#b45309", bg: "#fef3c7" },
+  COMPLETED: { label: "Paid", color: "#047857", bg: "#d1fae5" },
+  PAY_LATER: { label: "Pay Later", color: "#0f766e", bg: "#ccfbf1" },
+  FAILED: { label: "Failed", color: "#b91c1c", bg: "#fee2e2" },
+  REFUNDED: { label: "Refunded", color: "#374151", bg: "#f3f4f6" },
 };
 
 const AdminBookingsPage = () => {
@@ -124,7 +99,7 @@ const AdminBookingsPage = () => {
     // Payment approval action (if payment completed but not yet approved)
     if (booking.paymentStatus === "COMPLETED" && booking.status === "NOT_PAID_YET") {
       actions.push({
-        label: "Approve Payment ✅",
+        label: "Approve Payment",
         fn: async () => {
           if (!window.confirm("Approve this payment and confirm the booking?")) return;
           try {
@@ -177,7 +152,7 @@ const AdminBookingsPage = () => {
           booking.paymentStatus !== "PAY_LATER"
         ) {
           actions.push({
-            label: "Issue Refund 💸",
+            label: "Issue Refund",
             fn: async () => {
               if (
                 !window.confirm(
@@ -200,7 +175,7 @@ const AdminBookingsPage = () => {
       case "COMPLETED":
         if (!booking.payoutIssued) {
           actions.push({
-            label: "Issue Payout 💰",
+            label: "Issue Payout",
             fn: async () => {
               if (
                 !window.confirm(
@@ -231,7 +206,7 @@ const AdminBookingsPage = () => {
         } else {
           // Show payout info if already issued
           actions.push({
-            label: `✓ Paid Out $${booking.payoutAmount || ""}`,
+            label: `Paid Out $${booking.payoutAmount || ""}`,
             fn: () => {},
             className: "admin-btn--payout-done",
           });
@@ -264,9 +239,10 @@ const AdminBookingsPage = () => {
                 onClick={() => setFilter(filter === key ? "ALL" : key)}
                 style={{ borderColor: count > 0 ? cfg.bg : undefined }}
               >
-                <span className="admin-stat-icon">{cfg.icon}</span>
-                <span className="admin-stat-count">{count}</span>
-                <span className="admin-stat-label">{cfg.label}</span>
+                <div className="admin-stat-header">
+                  <span className="admin-stat-label">{cfg.label}</span>
+                </div>
+                <div className="admin-stat-count">{count}</div>
               </div>
             );
           })}
@@ -278,7 +254,7 @@ const AdminBookingsPage = () => {
             className={`admin-filter-pill ${filter === "ALL" ? "admin-filter-pill--active" : ""}`}
             onClick={() => setFilter("ALL")}
           >
-            All ({bookings.length})
+            All Bookings ({bookings.length})
           </button>
           {Object.entries(STATUS_CONFIG).map(([key, cfg]) => {
             const count = bookings.filter((b) => b.status === key).length;
@@ -289,7 +265,7 @@ const AdminBookingsPage = () => {
                 className={`admin-filter-pill ${filter === key ? "admin-filter-pill--active" : ""}`}
                 onClick={() => setFilter(key)}
               >
-                {cfg.icon} {cfg.label} ({count})
+                {cfg.label} ({count})
               </button>
             );
           })}
@@ -315,14 +291,14 @@ const AdminBookingsPage = () => {
             <table className="admin-table">
               <thead>
                 <tr>
-                  <th>Booking ID</th>
-                  <th>Guest</th>
-                  <th>Host / Property</th>
-                  <th>Dates</th>
-                  <th>Total</th>
+                  <th>Booking Reference</th>
+                  <th>Guest Info</th>
+                  <th>Host & Property</th>
+                  <th>Reservation Dates</th>
+                  <th>Total Cost</th>
                   <th>Status</th>
-                  <th>Payment</th>
-                  <th>Payout</th>
+                  <th>Payment State</th>
+                  <th>Host Payout</th>
                   <th>Actions</th>
                 </tr>
               </thead>
@@ -340,14 +316,14 @@ const AdminBookingsPage = () => {
                   return (
                     <tr key={booking.id}>
                       <td className="admin-td-id">
-                        {booking.id?.substring(0, 8)}...
+                        {booking.id?.substring(0, 8).toUpperCase()}
                       </td>
                       <td>
                         <div className="admin-user-cell">
                           <strong>
                             {guest.firstName} {guest.lastName}
                           </strong>
-                          <small>{booking.guestId?.substring(0, 8)}...</small>
+                          <small>ID: {booking.guestId?.substring(0, 8)}</small>
                         </div>
                       </td>
                       <td>
@@ -356,8 +332,8 @@ const AdminBookingsPage = () => {
                             {host.firstName} {host.lastName}
                           </strong>
                           <small>{host.hostDisplayName || ""}</small>
-                          {booking.propertyName && <small style={{color:'#6b7280'}}>🏡 {booking.propertyName}</small>}
-                          {booking.cancellationPolicy && <small style={{color:'#9ca3af'}}>{booking.cancellationPolicy} policy</small>}
+                          {booking.propertyName && <small style={{color:'#4b5563', marginTop:'2px'}}>{booking.propertyName}</small>}
+                          {booking.cancellationPolicy && <small style={{color:'#6b7280'}}>{booking.cancellationPolicy} policy</small>}
                         </div>
                       </td>
                       <td>
@@ -392,25 +368,25 @@ const AdminBookingsPage = () => {
                           style={{
                             color: status.color,
                             background: status.bg,
+                            border: `1px solid ${status.color}33`,
                           }}
                         >
-                          {status.icon} {status.label}
+                          {status.label}
                         </span>
                         {booking.cancellationReason && (
                           <div
                             className="admin-cancellation-reason"
                             title={booking.cancellationReason}
                           >
-                            💬{" "}
-                            {booking.cancellationReason.length > 40
-                              ? booking.cancellationReason.substring(0, 40) +
+                            {booking.cancellationReason.length > 35
+                              ? booking.cancellationReason.substring(0, 35) +
                                 "..."
                               : booking.cancellationReason}
-                            {booking.cancelledBy && <span style={{color:'#9ca3af', marginLeft:4}}>(by {booking.cancelledBy})</span>}
+                            {booking.cancelledBy && <span style={{color:'#6b7280', display: 'block', marginTop: '2px'}}>By {booking.cancelledBy}</span>}
                           </div>
                         )}
                         {booking.refundAmount > 0 && (
-                          <div style={{fontSize:12, color:'#059669', marginTop:2}}>Refund: ${booking.refundAmount}</div>
+                          <div style={{fontSize:12, color:'#047857', marginTop:4, fontWeight: 500}}>Refunded: ${booking.refundAmount}</div>
                         )}
                       </td>
                       <td>
@@ -419,6 +395,7 @@ const AdminBookingsPage = () => {
                           style={{
                             color: payment.color,
                             background: payment.bg,
+                            border: `1px solid ${payment.color}33`,
                           }}
                         >
                           {payment.label}
@@ -428,19 +405,22 @@ const AdminBookingsPage = () => {
                         {booking.payoutIssued ? (
                           <span
                             style={{
-                              color: "#2e7d32",
-                              fontWeight: 600,
-                              fontSize: 14,
+                              color: "#047857",
+                              fontWeight: 500,
+                              fontSize: 13,
+                              background: "#d1fae5",
+                              padding: "4px 8px",
+                              borderRadius: "4px",
                             }}
                           >
-                            ✓ ${booking.payoutAmount || "—"}
+                            Paid: ${booking.payoutAmount || "—"}
                           </span>
                         ) : booking.status === "COMPLETED" ? (
-                          <span style={{ color: "#b45309", fontSize: 13 }}>
+                          <span style={{ color: "#d97706", fontSize: 13, fontWeight: 500 }}>
                             Pending
                           </span>
                         ) : (
-                          <span style={{ color: "#ccc", fontSize: 13 }}>—</span>
+                          <span style={{ color: "#9ca3af", fontSize: 13 }}>—</span>
                         )}
                       </td>
                       <td>
@@ -450,6 +430,7 @@ const AdminBookingsPage = () => {
                               key={i}
                               className={`admin-btn ${action.className}`}
                               onClick={action.fn}
+                              disabled={action.className === "admin-btn--payout-done"}
                             >
                               {action.label}
                             </button>

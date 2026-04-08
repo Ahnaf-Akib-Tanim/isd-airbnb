@@ -71,4 +71,37 @@ public class ReviewController {
     public ResponseEntity<Review> rejectReview(@PathVariable String id) {
         return ResponseEntity.ok(reviewService.rejectReview(id));
     }
+
+    @GetMapping("/host/{hostId}/summary")
+    public ResponseEntity<?> getAiSummary(@PathVariable String hostId) {
+        var summary = reviewService.getAiSummary(hostId);
+        if (summary == null) {
+            return ResponseEntity.ok(java.util.Map.of(
+                "summary", "",
+                "reviewCount", 0,
+                "generated", false
+            ));
+        }
+        return ResponseEntity.ok(java.util.Map.of(
+            "summary", summary.getSummary(),
+            "reviewCount", summary.getReviewCount(),
+            "updatedAt", summary.getUpdatedAt() != null ? summary.getUpdatedAt().toString() : "",
+            "generated", true
+        ));
+    }
+
+    @PostMapping("/host/{hostId}/summary/generate")
+    public ResponseEntity<?> generateAiSummary(@PathVariable String hostId) {
+        try {
+            var reviews = reviewService.getReviewsByHost(hostId);
+            if (reviews.isEmpty()) {
+                return ResponseEntity.ok(java.util.Map.of("message", "No reviews to summarize"));
+            }
+            // This triggers async generation
+            reviewService.triggerSummaryUpdate(hostId);
+            return ResponseEntity.ok(java.util.Map.of("message", "Summary generation triggered"));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().body(java.util.Map.of("error", e.getMessage()));
+        }
+    }
 }

@@ -40,6 +40,7 @@ import {
   getPrimaryHostedProperty,
 } from "../utils/hostUtils";
 import api from "../utils/axiosConfig";
+import { getAiReviewSummary } from "../services/reviewService";
 import "./ListingDetailsPage.css";
 
 const AMENITY_ICONS = {
@@ -102,7 +103,9 @@ const ListingDetailsPage = () => {
   const [searchParams] = useSearchParams();
   const [host, setHost] = useState(null);
   const [reviews, setReviews] = useState([]);
+  const [aiSummary, setAiSummary] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isGeneratingAi, setIsGeneratingAi] = useState(false);
 
   const [checkIn, setCheckIn] = useState(
     searchParams.get("checkin")
@@ -122,9 +125,10 @@ const ListingDetailsPage = () => {
   useEffect(() => {
     const fetchHostAndReviews = async () => {
       try {
-        const [hostRes, reviewsRes] = await Promise.allSettled([
+        const [hostRes, reviewsRes, summaryRes] = await Promise.allSettled([
           api.get(`/api/users/${userId}`),
           api.get(`/api/reviews/host/${userId}`),
+          getAiReviewSummary(userId),
         ]);
 
         if (hostRes.status === "fulfilled") {
@@ -133,6 +137,10 @@ const ListingDetailsPage = () => {
 
         if (reviewsRes.status === "fulfilled") {
           setReviews(reviewsRes.value.data || []);
+        }
+
+        if (summaryRes.status === "fulfilled" && summaryRes.value) {
+          setAiSummary(summaryRes.value);
         }
       } catch (err) {
         console.error("Failed to load host", err);
@@ -143,6 +151,37 @@ const ListingDetailsPage = () => {
 
     fetchHostAndReviews();
   }, [userId]);
+
+  const handleGenerateAiSummary = async () => {
+    if (isGeneratingAi) return;
+    setIsGeneratingAi(true);
+    try {
+      toast.info("Generating AI summary...");
+      await api.post(`/api/reviews/host/${userId}/summary/generate`);
+      // Simulating a wait block to let OpenRouter respond
+      setTimeout(async () => {
+        try {
+          const summaryRes = await getAiReviewSummary(userId);
+          if (summaryRes && summaryRes.generated) {
+            setAiSummary(summaryRes);
+            toast.success("AI summary generated successfully!");
+          } else {
+             toast.info("Summary may take a bit longer, checking again shortly...");
+             // Check one more time after another few seconds
+             setTimeout(async () => {
+                const retryRes = await getAiReviewSummary(userId);
+                if (retryRes && retryRes.generated) setAiSummary(retryRes);
+             }, 4000);
+          }
+        } catch (e) {}
+        setIsGeneratingAi(false);
+      }, 5000);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to trigger generation");
+      setIsGeneratingAi(false);
+    }
+  };
 
   const handleReserve = () => {
     if (!checkIn || !checkOut) {
@@ -273,9 +312,9 @@ const ListingDetailsPage = () => {
           className="listing-container"
           style={{ textAlign: "center", paddingTop: 80 }}
         >
-          <h2>Host not found</h2>
+          <h2>User not found</h2>
           <p style={{ color: "#717171" }}>
-            This listing may have been removed or is unavailable.
+            This profile may have been removed or is unavailable.
           </p>
           <button
             className="reserve-btn"
@@ -289,6 +328,87 @@ const ListingDetailsPage = () => {
     );
   }
 
+  // --- RENDERING GUEST PROFILE ---
+  if (host.role !== "HOST") {
+    return (
+      <div className="listing-page" style={{ minHeight: "100vh", background: "#f7f7f7", padding: "64px 24px" }}>
+        <div style={{ maxWidth: 800, margin: "0 auto", display: "grid", gridTemplateColumns: "1fr 2fr", gap: "32px" }}>
+          
+          {/* Identity Card */}
+          <div style={{ background: "#fff", borderRadius: "24px", padding: "32px", boxShadow: "0 6px 16px rgba(0,0,0,0.06)", height: "fit-content", display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
+            <div style={{ width: 140, height: 140, borderRadius: "50%", background: "#e5e5e5", overflow: "hidden", marginBottom: 20 }}>
+              <img 
+                src={host.profileImage || `https://ui-avatars.com/api/?name=${host.firstName}+${host.lastName}&background=random&size=200`} 
+                alt={host.firstName} 
+                style={{ width: "100%", height: "100%", objectFit: "cover" }} 
+              />
+            </div>
+            <h1 style={{ fontSize: 26, margin: "0 0 4px 0", color: "#222" }}>{host.firstName} {host.lastName}</h1>
+            <p style={{ margin: 0, color: "#717171", fontSize: 15 }}>Guest</p>
+            
+            <div style={{ width: "100%", borderTop: "1px solid #ebebeb", margin: "24px 0", paddingTop: "24px", textAlign: "left" }}>
+              <h3 style={{ fontSize: 18, marginBottom: 16 }}>Identity verification</h3>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12, color: "#222" }}>
+                <span>✓</span>
+                <span style={{ fontSize: 15 }}>Email {host.emailVerified ? "verified" : "unverified"}</span>
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, color: "#222" }}>
+                <span>✓</span>
+                <span style={{ fontSize: 15 }}>Phone {host.phoneNumber ? "provided" : "not provided"}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Details Section */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "32px" }}>
+            <div>
+              <h2 style={{ fontSize: 32, marginBottom: 8, color: "#222" }}>About {host.firstName}</h2>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#717171", fontSize: 15 }}>
+                <span style={{ fontWeight: 600 }}>Joined in {new Date(host.createdAt || Date.now()).getFullYear()}</span>
+              </div>
+            </div>
+
+            {host.bio && (
+              <div style={{ lineHeight: 1.6, color: "#222", fontSize: 16 }}>
+                "{host.bio}"
+              </div>
+            )}
+
+            <div style={{ borderTop: "1px solid #dddddd", paddingTop: 32 }}>
+              <h3 style={{ fontSize: 22, marginBottom: 20 }}>More about {host.firstName}</h3>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+                {host.city && (
+                  <div>
+                    <strong style={{ display: "block", color: "#717171", fontSize: 14 }}>Location</strong>
+                    <span style={{ color: "#222", fontSize: 16 }}>{host.city}{host.country ? `, ${host.country}` : ""}</span>
+                  </div>
+                )}
+                <div>
+                  <strong style={{ display: "block", color: "#717171", fontSize: 14 }}>Status</strong>
+                  <span style={{ color: "#222", fontSize: 16 }}>{host.status === "ACTIVE" ? "Active User" : host.status}</span>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ borderTop: "1px solid #dddddd", paddingTop: 32 }}>
+              {user?.userId !== host.userId && (
+                <button
+                  className="reserve-btn"
+                  style={{ width: "auto", padding: "14px 32px", fontSize: 16 }}
+                  onClick={() => navigate(`/inbox?with=${host.userId}`)}
+                >
+                  Message {host.firstName}
+                </button>
+              )}
+            </div>
+
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // --- RENDERING HOST / LISTING PROFILE ---
   return (
     <div className="listing-page">
       <div className="listing-container">
@@ -431,6 +551,9 @@ const ListingDetailsPage = () => {
                     location: host.locationRating || 4.6,
                     value: host.valueRating || 4.7,
                   }}
+                  aiSummary={aiSummary}
+                  onGenerateSummary={handleGenerateAiSummary}
+                  isGeneratingAi={isGeneratingAi}
                 />
               </>
             )}

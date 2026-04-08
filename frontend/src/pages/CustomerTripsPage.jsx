@@ -182,7 +182,11 @@ const CustomerTripsPage = () => {
       setReviewModal(null);
       setReviewData({ rating: 5, comment: "" });
     } catch (err) {
-      toast.error("Failed to submit review");
+      if (err.response?.data?.message?.includes("already exists") || err.response?.data?.error?.includes("already exists")) {
+        toast.error("You have already reviewed this booking!");
+      } else {
+        toast.error("Failed to submit review");
+      }
     } finally {
       setSubmittingReview(false);
     }
@@ -411,38 +415,38 @@ const CustomerTripsPage = () => {
         {!loading && (
           <div className="ct-summary-stats" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px', marginBottom: '40px' }}>
             {/* Total Trips - Premium Violet */}
-            <div className="ct-stat-card" style={{ padding: '28px 24px', background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)', borderRadius: '20px', color: 'white', display: 'flex', alignItems: 'center', gap: '20px', position: 'relative', overflow: 'hidden', boxShadow: '0 10px 25px rgba(99,102,241,0.2)' }}>
+            <div className="ct-stat-card" style={{ padding: '28px 24px', background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)', borderRadius: '20px', color: '#ffffff', display: 'flex', alignItems: 'center', gap: '20px', position: 'relative', overflow: 'hidden', boxShadow: '0 10px 25px rgba(99,102,241,0.2)' }}>
               <span style={{ fontSize: '100px', position: 'absolute', right: '-15px', bottom: '-20px', opacity: '0.15', transform: 'rotate(-10deg)' }}>✈️</span>
               <div style={{ background: 'rgba(255,255,255,0.2)', padding: '16px', borderRadius: '16px', backdropFilter: 'blur(10px)' }}>
                 <span style={{ fontSize: '28px' }}>✈️</span>
               </div>
               <div style={{ position: 'relative', zIndex: 1 }}>
-                <p style={{ margin: 0, color: 'rgba(255,255,255,0.85)', fontSize: '14px', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: '600', marginBottom: '4px' }}>Voyages Booked</p>
-                <h3 style={{ margin: 0, fontSize: '36px', fontWeight: '800' }}>{categorized.past.length + categorized.current.length}</h3>
+                <p style={{ margin: 0, color: '#ffffff', fontSize: '14px', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: '600', marginBottom: '4px' }}>Voyages Booked</p>
+                <h3 style={{ margin: 0, fontSize: '36px', fontWeight: '800', color: '#ffffff' }}>{categorized.past.length + categorized.current.length}</h3>
               </div>
             </div>
 
             {/* Upcoming - Premium Teal */}
-            <div className="ct-stat-card" style={{ padding: '28px 24px', background: 'linear-gradient(135deg, #0d9488 0%, #0f766e 100%)', borderRadius: '20px', color: 'white', display: 'flex', alignItems: 'center', gap: '20px', position: 'relative', overflow: 'hidden', boxShadow: '0 10px 25px rgba(13,148,136,0.2)' }}>
+            <div className="ct-stat-card" style={{ padding: '28px 24px', background: 'linear-gradient(135deg, #0d9488 0%, #0f766e 100%)', borderRadius: '20px', color: '#ffffff', display: 'flex', alignItems: 'center', gap: '20px', position: 'relative', overflow: 'hidden', boxShadow: '0 10px 25px rgba(13,148,136,0.2)' }}>
               <span style={{ fontSize: '100px', position: 'absolute', right: '-15px', bottom: '-20px', opacity: '0.15', transform: 'rotate(5deg)' }}>🏖️</span>
               <div style={{ background: 'rgba(255,255,255,0.2)', padding: '16px', borderRadius: '16px', backdropFilter: 'blur(10px)' }}>
                 <span style={{ fontSize: '28px' }}>📅</span>
               </div>
               <div style={{ position: 'relative', zIndex: 1 }}>
-                <p style={{ margin: 0, color: 'rgba(255,255,255,0.85)', fontSize: '14px', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: '600', marginBottom: '4px' }}>Upcoming Stays</p>
-                <h3 style={{ margin: 0, fontSize: '36px', fontWeight: '800' }}>{categorized.current.length}</h3>
+                <p style={{ margin: 0, color: '#ffffff', fontSize: '14px', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: '600', marginBottom: '4px' }}>Upcoming Stays</p>
+                <h3 style={{ margin: 0, fontSize: '36px', fontWeight: '800', color: '#ffffff' }}>{categorized.current.length}</h3>
               </div>
             </div>
 
             {/* Total Spent - Premium Rose */}
-            <div className="ct-stat-card" style={{ padding: '28px 24px', background: 'linear-gradient(135deg, #e11d48 0%, #be123c 100%)', borderRadius: '20px', color: 'white', display: 'flex', alignItems: 'center', gap: '20px', position: 'relative', overflow: 'hidden', boxShadow: '0 10px 25px rgba(225,29,72,0.2)' }}>
+            <div className="ct-stat-card" style={{ padding: '28px 24px', background: 'linear-gradient(135deg, #e11d48 0%, #be123c 100%)', borderRadius: '20px', color: '#ffffff', display: 'flex', alignItems: 'center', gap: '20px', position: 'relative', overflow: 'hidden', boxShadow: '0 10px 25px rgba(225,29,72,0.2)' }}>
               <span style={{ fontSize: '100px', position: 'absolute', right: '-10px', bottom: '-20px', opacity: '0.15' }}>💳</span>
               <div style={{ background: 'rgba(255,255,255,0.2)', padding: '16px', borderRadius: '16px', backdropFilter: 'blur(10px)' }}>
                 <span style={{ fontSize: '28px' }}>💰</span>
               </div>
               <div style={{ position: 'relative', zIndex: 1 }}>
-                <p style={{ margin: 0, color: 'rgba(255,255,255,0.85)', fontSize: '14px', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: '600', marginBottom: '4px' }}>Total Spent</p>
-                <h3 style={{ margin: 0, fontSize: '36px', fontWeight: '800' }}>
+                <p style={{ margin: 0, color: '#ffffff', fontSize: '14px', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: '600', marginBottom: '4px' }}>Total Spent</p>
+                <h3 style={{ margin: 0, fontSize: '36px', fontWeight: '800', color: '#ffffff' }}>
                   ${categorized.past.reduce((acc, curr) => acc + (curr.totalPrice || 0), 0) + categorized.current.filter(b => b.paymentStatus === 'COMPLETED').reduce((acc, curr) => acc + (curr.totalPrice || 0), 0)}
                 </h3>
               </div>

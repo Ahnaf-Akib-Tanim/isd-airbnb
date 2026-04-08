@@ -37,13 +37,14 @@ const formatRelativeTime = (value) => {
   return `${days}d ago`;
 };
 
-const isUnread = (notification) => !notification.readAt;
+const isUnread = (notification) => !notification.readAt && notification.status === "UNREAD";
 
 const NotificationBell = ({ user }) => {
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(false);
   const [pulse, setPulse] = useState(false);
+  const [expandedId, setExpandedId] = useState(null);
   const panelRef = useRef(null);
   const initializedRef = useRef(false);
   const unreadIdsRef = useRef(new Set());
@@ -123,6 +124,7 @@ const NotificationBell = ({ user }) => {
     const handleClickOutside = (event) => {
       if (panelRef.current && !panelRef.current.contains(event.target)) {
         setOpen(false);
+        setExpandedId(null);
       }
     };
 
@@ -130,9 +132,32 @@ const NotificationBell = ({ user }) => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  useEffect(() => {
-    if (!open) return;
+  const handleNotificationClick = (notification) => {
+    // Toggle expand
+    setExpandedId(expandedId === notification.notificationId ? null : notification.notificationId);
 
+    // Only mark read if it was unread
+    if (isUnread(notification)) {
+      notificationService
+        .markNotificationAsRead(notification.notificationId)
+        .catch(() => {});
+
+      setNotifications((prev) =>
+        prev.map((item) =>
+          item.notificationId === notification.notificationId
+            ? {
+                ...item,
+                readAt: new Date().toISOString(),
+                status: "READ",
+              }
+            : item,
+        ),
+      );
+      unreadIdsRef.current.delete(notification.notificationId);
+    }
+  };
+
+  const markAllAsRead = async () => {
     const unreadNotifications = notifications.filter(isUnread);
     if (unreadNotifications.length === 0) return;
 
@@ -148,13 +173,13 @@ const NotificationBell = ({ user }) => {
           ? {
               ...item,
               readAt: new Date().toISOString(),
-              status: item.status === "UNREAD" ? "READ" : item.status,
+              status: "READ",
             }
           : item,
       ),
     );
-    unreadIdsRef.current = new Set();
-  }, [open, notifications]);
+    unreadIdsRef.current.clear();
+  };
 
   const unreadCount = useMemo(
     () => notifications.filter(isUnread).length,
@@ -167,13 +192,17 @@ const NotificationBell = ({ user }) => {
         type="button"
         className={`navbar__icon-btn navbar__notification-btn ${pulse ? "navbar__notification-btn--pulse" : ""}`}
         aria-label="Notifications"
-        onClick={() => setOpen((prev) => !prev)}
+        onClick={() => {
+          setOpen((prev) => !prev);
+          if (open) setExpandedId(null);
+        }}
       >
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path
-            fill="currentColor"
-            d="M12 2a5 5 0 0 0-5 5v2.17c0 .53-.21 1.04-.59 1.41L5.2 11.8A2 2 0 0 0 6.61 15H17.4a2 2 0 0 0 1.41-3.41l-1.22-1.21A1.99 1.99 0 0 1 17 9V7a5 5 0 0 0-5-5zm0 20a3 3 0 0 0 2.82-2H9.18A3 3 0 0 0 12 22z"
-          />
+        <svg 
+          viewBox="0 0 24 24" 
+          aria-hidden="true" 
+          style={{ width: '26px', height: '26px', color: '#FF385C', fill: 'none', stroke: 'currentColor', strokeWidth: '2', strokeLinecap: 'round', strokeLinejoin: 'round' }}
+        >
+          <path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
         </svg>
         {unreadCount > 0 && (
           <span className="navbar__notification-badge">
@@ -183,26 +212,33 @@ const NotificationBell = ({ user }) => {
       </button>
 
       {open && (
-        <div className="navbar__notification-panel animate-fade-in">
-          <div className="navbar__notification-header">
+        <div className="navbar__notification-panel animate-fade-in" style={{ width: 360 }}>
+          <div className="navbar__notification-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
-              <h3>Notifications</h3>
-              <p>
-                {user?.role === "ADMIN"
-                  ? "Verification requests and admin updates"
-                  : "Your account updates"}
-              </p>
+              <h3 style={{ margin: 0, fontSize: '18px' }}>Notifications</h3>
             </div>
-            <button
-              type="button"
-              className="btn btn-ghost"
-              onClick={() => loadNotifications()}
-            >
-              Refresh
-            </button>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              {unreadCount > 0 && (
+                <button
+                  type="button"
+                  onClick={markAllAsRead}
+                  style={{ background: 'none', border: 'none', color: '#ff385c', fontSize: '13px', cursor: 'pointer', outline: 'none' }}
+                >
+                  Mark all read
+                </button>
+              )}
+              <button
+                type="button"
+                className="btn btn-ghost"
+                style={{ padding: '4px 8px', fontSize: '13px' }}
+                onClick={() => loadNotifications()}
+              >
+                Refresh
+              </button>
+            </div>
           </div>
 
-          <div className="navbar__notification-list">
+          <div className="navbar__notification-list" style={{ maxHeight: '420px', overflowY: 'auto' }}>
             {loading ? (
               <div className="navbar__notification-empty">
                 <span className="spinner spinner-dark" />
@@ -212,28 +248,66 @@ const NotificationBell = ({ user }) => {
                 No notifications yet.
               </div>
             ) : (
-              notifications.slice(0, 12).map((notification) => (
-                <article
-                  key={notification.notificationId}
-                  className={`navbar__notification-item ${isUnread(notification) ? "navbar__notification-item--unread" : ""}`}
-                >
-                  <div className="navbar__notification-row">
-                    <strong>{notification.title || "Notification"}</strong>
-                    <span>{formatRelativeTime(notification.createdAt)}</span>
-                  </div>
-                  <p>{notification.message}</p>
-                  <div className="navbar__notification-meta">
-                    <span className="badge badge-gray">
-                      {notification.type?.replaceAll("_", " ") || "UPDATE"}
-                    </span>
-                    {notification.resolutionNote && (
-                      <span className="navbar__notification-note">
-                        {notification.resolutionNote}
+              notifications.slice(0, 15).map((notification) => {
+                const unread = isUnread(notification);
+                const isExpanded = expandedId === notification.notificationId;
+                
+                return (
+                  <article
+                    key={notification.notificationId}
+                    onClick={() => handleNotificationClick(notification)}
+                    style={{
+                      padding: '16px',
+                      borderBottom: '1px solid #ebebeb',
+                      cursor: 'pointer',
+                      background: unread ? '#f0f7ff' : '#ffffff',
+                      transition: 'background 0.2s',
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = unread ? '#e6f3ff' : '#f9f9f9'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = unread ? '#f0f7ff' : '#ffffff'}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        {unread && (
+                          <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#ff385c', flexShrink: 0 }} />
+                        )}
+                        <strong style={{ fontSize: '14px', color: '#222', fontWeight: unread ? 600 : 500 }}>
+                          {notification.title || "New Update"}
+                        </strong>
+                      </div>
+                      <span style={{ fontSize: '12px', color: '#717171', whiteSpace: 'nowrap', marginLeft: '12px' }}>
+                        {formatRelativeTime(notification.createdAt)}
                       </span>
+                    </div>
+                    
+                    <p style={{ 
+                      margin: '6px 0 0 0', 
+                      fontSize: '14px', 
+                      color: unread ? '#484848' : '#717171',
+                      display: isExpanded ? 'block' : '-webkit-box',
+                      WebkitLineClamp: isExpanded ? 'unset' : 2,
+                      WebkitBoxOrient: 'vertical',
+                      overflow: 'hidden',
+                      lineHeight: '1.4'
+                    }}>
+                      {notification.message}
+                    </p>
+
+                    {isExpanded && (
+                      <div style={{ marginTop: '12px', display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                        <span style={{ fontSize: '11px', padding: '2px 8px', background: '#f0f0f0', color: '#484848', borderRadius: '4px', fontWeight: 600 }}>
+                          {notification.type?.replaceAll("_", " ") || "PROFILE"}
+                        </span>
+                        {notification.resolutionNote && (
+                          <span style={{ fontSize: '11px', padding: '2px 8px', background: '#fff0f3', color: '#e51c44', borderRadius: '4px' }}>
+                            {notification.resolutionNote}
+                          </span>
+                        )}
+                      </div>
                     )}
-                  </div>
-                </article>
-              ))
+                  </article>
+                );
+              })
             )}
           </div>
         </div>

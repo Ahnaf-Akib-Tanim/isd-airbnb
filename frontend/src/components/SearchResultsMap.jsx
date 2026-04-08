@@ -1,8 +1,8 @@
-import React, { useEffect } from "react";
-import { MapContainer, TileLayer, Marker, useMap } from "react-leaflet";
+import React, { useEffect, useState } from "react";
+import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 import { useNavigate } from "react-router-dom";
-import { getHostCoordinates, getNightlyRate } from "../utils/hostUtils";
+import { getHostApproximateCoordinates, getNightlyRate } from "../utils/hostUtils";
 import "leaflet/dist/leaflet.css";
 import "./SearchResultsMap.css";
 
@@ -17,28 +17,48 @@ L.Icon.Default.mergeOptions({
     "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
 });
 
-// Component to auto-fit bounds
-const RecenterMap = ({ locations }) => {
+// Auto-fit map bounds whenever the host list changes
+const FitBounds = ({ coords }) => {
   const map = useMap();
+
   useEffect(() => {
-    if (locations.length > 0) {
-      const bounds = L.latLngBounds(
-        locations.map((l) => [l.latitude, l.longitude]),
-      );
-      map.fitBounds(bounds, { padding: [50, 50], maxZoom: 14 });
+    if (!map || coords.length === 0) return;
+
+    if (coords.length === 1) {
+      map.setView(coords[0], 14);
+      return;
     }
-  }, [locations, map]);
+
+    try {
+      const bounds = L.latLngBounds(coords.map((c) => L.latLng(c[0], c[1])));
+      if (bounds.isValid()) {
+        map.fitBounds(bounds, { padding: [60, 60], maxZoom: 14 });
+      }
+    } catch (_) {}
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(coords)]);   // re-run whenever the coord list changes
+
   return null;
 };
 
+const createPriceIcon = (price, active = false) =>
+  L.divIcon({
+    className: "custom-marker",
+    html: `<div class="price-marker${active ? " price-marker--active" : ""}">$${price}</div>`,
+    iconSize: [60, 28],
+    iconAnchor: [30, 14],
+    popupAnchor: [0, -18],
+  });
+
 const SearchResultsMap = ({ hosts }) => {
   const navigate = useNavigate();
+  const [activeId, setActiveId] = useState(null);
 
-  // Filter hosts with valid coordinates
+  // Use approximate coordinates (real lat/lng first, then city lookup)
   const validHosts = (hosts || [])
     .map((host) => {
-      const coordinates = getHostCoordinates(host);
-      return coordinates ? { ...host, coordinates } : null;
+      const coords = getHostApproximateCoordinates(host);
+      return coords ? { ...host, _coords: coords } : null;
     })
     .filter(Boolean);
 
@@ -51,17 +71,8 @@ const SearchResultsMap = ({ hosts }) => {
     );
   }
 
-  const createIcon = (price) => {
-    return L.divIcon({
-      className: "custom-marker",
-      html: `<div class="price-marker">$${price}</div>`,
-      iconSize: [60, 28],
-      iconAnchor: [30, 14],
-    });
-  };
-
-  // Center on first valid host
-  const defaultCenter = validHosts[0].coordinates;
+  const allCoords = validHosts.map((h) => h._coords);
+  const defaultCenter = allCoords[0];
 
   return (
     <MapContainer
@@ -74,19 +85,29 @@ const SearchResultsMap = ({ hosts }) => {
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         attribution="&copy; OpenStreetMap contributors"
       />
-      <RecenterMap locations={validHosts} />
-      {validHosts.map((host) => (
-        <Marker
-          key={host.userId}
-          position={host.coordinates}
-          icon={createIcon(getNightlyRate(host))}
-          eventHandlers={{
-            click: () => navigate(`/rooms/${host.userId}`),
-          }}
-        />
-      ))}
+      <FitBounds coords={allCoords} />
+
+      {validHosts.map((host) => {
+        const price = getNightlyRate(host);
+        const isActive = host.userId === activeId;
+        const location = [host.district, host.city, host.country]
+          .filter(Boolean)
+          .join(", ");
+
+        return (
+          <Marker
+            key={host.userId}
+            position={host._coords}
+            icon={createPriceIcon(price, false)}
+            eventHandlers={{
+              click: () => navigate(`/rooms/${host.userId}`),
+            }}
+          />
+        );
+      })}
     </MapContainer>
   );
 };
 
 export default SearchResultsMap;
+
